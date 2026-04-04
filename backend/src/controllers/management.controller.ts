@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Op } from 'sequelize';
 import { AuthRequest } from '../middlewares';
 import { Flow, Instance, Ticket, User } from '../models';
+import revolutionService from '../services/revolution.service';
 import logger from '../utils';
 
 class ManagementController {
@@ -245,19 +246,32 @@ class ManagementController {
         return;
       }
 
-      await instance.update({ status: 'connected', last_connected_at: new Date() });
+      const revolutionResult = await revolutionService.connectInstance(instance.evolution_instance);
+
+      const nextStatus = revolutionResult.status || 'connecting';
+      const qrCode = revolutionResult.qrCode || instance.qr_code;
+
+      await instance.update({
+        status: nextStatus,
+        qr_code: qrCode,
+        last_connected_at: nextStatus === 'connected' ? new Date() : instance.last_connected_at,
+      });
 
       logger.info('Instancia conectada', {
         companyId,
         instanceId: instance.id,
         status: instance.status,
+        evolutionInstance: instance.evolution_instance,
       });
 
-      res.json(instance);
+      res.json({
+        ...instance.toJSON(),
+        revolution: revolutionResult,
+      });
     } catch (error) {
       logger.error('Falha ao conectar instancia', error);
       const message = error instanceof Error ? error.message : 'Erro ao conectar instancia';
-      res.status(500).json({ error: message });
+      res.status(502).json({ error: message });
     }
   }
 

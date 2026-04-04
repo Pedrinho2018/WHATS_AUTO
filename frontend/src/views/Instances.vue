@@ -9,11 +9,14 @@ interface Instance {
   phone?: string
   evolution_instance: string
   status: 'connected' | 'disconnected' | 'connecting' | 'error'
+  qr_code?: string
 }
 
 const authStore = useAuthStore()
 const instances = ref<Instance[]>([])
 const loading = ref(true)
+const actionLoadingById = ref<Record<number, boolean>>({})
+const qrCodeById = ref<Record<number, string>>({})
 
 const form = ref({
   name: '',
@@ -34,6 +37,14 @@ const loadInstances = async () => {
   try {
     const { data } = await api.get('/instances')
     instances.value = data
+
+    const nextQrCodes = { ...qrCodeById.value }
+    for (const instance of data as Instance[]) {
+      if (instance.qr_code) {
+        nextQrCodes[instance.id] = instance.qr_code
+      }
+    }
+    qrCodeById.value = nextQrCodes
   } finally {
     loading.value = false
   }
@@ -54,9 +65,44 @@ const createInstance = async () => {
   await loadInstances()
 }
 
-const connectInstance = async (id: number) => {
-  await api.post(`/instances/${id}/connect`)
-  await loadInstances()
+const setActionLoading = (id: number, value: boolean) => {
+  actionLoadingById.value = {
+    ...actionLoadingById.value,
+    [id]: value,
+  }
+}
+
+const fetchQrCode = async (instance: Instance) => {
+  setActionLoading(instance.id, true)
+  try {
+    const encodedName = encodeURIComponent(instance.evolution_instance)
+    const { data } = await api.get(`/revolution/instances/${encodedName}/qrcode`)
+    qrCodeById.value = {
+      ...qrCodeById.value,
+      [instance.id]: String(data.qrCode || ''),
+    }
+  } finally {
+    setActionLoading(instance.id, false)
+  }
+}
+
+const connectInstance = async (instance: Instance) => {
+  setActionLoading(instance.id, true)
+  try {
+    const { data } = await api.post(`/instances/${instance.id}/connect`)
+    const qrCode = String(data?.revolution?.qrCode || data?.qr_code || '')
+
+    if (qrCode) {
+      qrCodeById.value = {
+        ...qrCodeById.value,
+        [instance.id]: qrCode,
+      }
+    }
+
+    await loadInstances()
+  } finally {
+    setActionLoading(instance.id, false)
+  }
 }
 
 onMounted(async () => {
@@ -101,10 +147,31 @@ onMounted(async () => {
         <button
           v-if="canManage"
           class="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-          @click="connectInstance(instance.id)"
+          :disabled="actionLoadingById[instance.id]"
+          @click="connectInstance(instance)"
         >
-          Conectar pela tela de gerência
+          {{ actionLoadingById[instance.id] ? 'Conectando...' : 'Conectar na Evolution' }}
         </button>
+
+        <button
+          v-if="canManage"
+          class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+          :disabled="actionLoadingById[instance.id]"
+          @click="fetchQrCode(instance)"
+        >
+          Buscar QR Code
+        </button>
+
+        <div v-if="qrCodeById[instance.id]" class="mt-4 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">QR Code</p>
+          <img
+            v-if="qrCodeById[instance.id].startsWith('data:image')"
+            :src="qrCodeById[instance.id]"
+            alt="QR Code da instância"
+            class="mx-auto max-h-56 rounded"
+          />
+          <p v-else class="break-all text-xs text-slate-600 dark:text-slate-300">{{ qrCodeById[instance.id] }}</p>
+        </div>
       </div>
     </div>
   </div>
