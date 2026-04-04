@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import api from '../services/api'
+import { sendPing, useSocketState } from '../services/socket'
 
 const stats = ref({
   totalTickets: 0,
@@ -15,8 +16,17 @@ const stats = ref({
 
 const loading = ref(true)
 const lastUpdatedAt = ref('')
+const { isConnected, lastError, lastServerMessage, lastPongAt, lastRealtimeEvent, ticketEventsCount, messageEventsCount } = useSocketState()
 
 const todayLabel = computed(() => dayjs().format('DD/MM/YYYY'))
+const realtimeBadgeClass = computed(() =>
+  isConnected.value
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-500/10 dark:text-emerald-300'
+    : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700/40 dark:bg-rose-500/10 dark:text-rose-300'
+)
+const realtimeBadgeText = computed(() =>
+  isConnected.value ? 'Tempo real conectado' : 'Tempo real desconectado'
+)
 
 onMounted(async () => {
   try {
@@ -34,6 +44,8 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  sendPing()
 })
 </script>
 
@@ -50,6 +62,10 @@ onMounted(async () => {
           <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
           Plataforma ativa
         </div>
+        <div :class="['inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold', realtimeBadgeClass]">
+          <span :class="['h-2 w-2 rounded-full', isConnected ? 'bg-emerald-500' : 'bg-rose-500']"></span>
+          {{ realtimeBadgeText }}
+        </div>
         <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           <svg class="h-4 w-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -57,6 +73,36 @@ onMounted(async () => {
           {{ todayLabel }}
           <span v-if="lastUpdatedAt" class="text-slate-400 dark:text-slate-500">• atualizado {{ lastUpdatedAt }}</span>
         </div>
+      </div>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Realtime</p>
+        <p class="mt-2 font-semibold">{{ lastServerMessage || 'Aguardando evento de boas-vindas...' }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Heartbeat</p>
+        <p class="mt-2 font-semibold">{{ lastPongAt ? `Ultimo pong em ${dayjs(lastPongAt).format('DD/MM/YYYY HH:mm:ss')}` : 'Sem pong recebido ainda' }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Falhas</p>
+        <p class="mt-2 font-semibold">{{ lastError || 'Nenhum erro de conexao' }}</p>
+      </div>
+    </div>
+
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Eventos de Ticket</p>
+        <p class="mt-2 text-lg font-semibold">{{ ticketEventsCount }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Eventos de Mensagem</p>
+        <p class="mt-2 text-lg font-semibold">{{ messageEventsCount }}</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <p class="text-xs uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Ultimo Evento</p>
+        <p class="mt-2 font-semibold">{{ lastRealtimeEvent || 'Sem eventos ainda' }}</p>
       </div>
     </div>
 

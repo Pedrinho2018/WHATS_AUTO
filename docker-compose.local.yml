@@ -10,21 +10,34 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:18081,http://127.0.0.1:18081,http://localhost:5173,http://127.0.0.1:5173}
       - DB_HOST=mariadb
       - DB_PORT=3306
       - DB_NAME=${DB_NAME:-whatsauto}
       - DB_USER=${DB_USER:-whatsauto}
       - DB_PASS=${DB_PASS:-whatsauto123}
-      - JWT_SECRET=${JWT_SECRET:-sua_chave_jwt_super_secreta}
+      - JWT_SECRET=${JWT_SECRET:?defina JWT_SECRET no .env com no minimo 32 caracteres}
       - EVOLUTION_SERVER_URL=http://evolution:8080
-      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-dev-evolution-key}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
+      - EVOLUTION_WEBHOOK_SECRET=${EVOLUTION_WEBHOOK_SECRET:?defina EVOLUTION_WEBHOOK_SECRET no .env}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-norte-whatsapp}
+      - REVOLUTION_API_MODE=${REVOLUTION_API_MODE:-mock}
+      - REVOLUTION_API_URL=${REVOLUTION_API_URL:-}
+      - REVOLUTION_API_KEY=${REVOLUTION_API_KEY:-}
+      - REVOLUTION_ENDPOINT_LIST=${REVOLUTION_ENDPOINT_LIST:-/instance/fetchInstances}
+      - REVOLUTION_ENDPOINT_CREATE=${REVOLUTION_ENDPOINT_CREATE:-/instance/create}
+      - REVOLUTION_ENDPOINT_CONNECT=${REVOLUTION_ENDPOINT_CONNECT:-/instance/connect/{instanceName}}
+      - REVOLUTION_ENDPOINT_DISCONNECT=${REVOLUTION_ENDPOINT_DISCONNECT:-/instance/logout/{instanceName}}
+      - REVOLUTION_ENDPOINT_STATUS=${REVOLUTION_ENDPOINT_STATUS:-/instance/connectionState/{instanceName}}
+      - REVOLUTION_ENDPOINT_QRCODE=${REVOLUTION_ENDPOINT_QRCODE:-/instance/connect/{instanceName}}
+      - REVOLUTION_ENDPOINT_SEND_TEXT=${REVOLUTION_ENDPOINT_SEND_TEXT:-/message/sendText/{instanceName}}
       - N8N_WEBHOOK_URL=http://n8n:5678
       - BUSINESS_NAME=${BUSINESS_NAME:-Norte MT Sistemas}
       - COMPANY_SUBDOMAIN=${COMPANY_SUBDOMAIN:-norte}
       - HUMAN_PHONE=${HUMAN_PHONE:-5566999999999}
       - ADMIN_NAME=${ADMIN_NAME:-Administrador}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@nortemtsistemas.com.br}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123456}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?defina ADMIN_PASSWORD no .env}
       - ADMIN_RESET_PASSWORD=${ADMIN_RESET_PASSWORD:-false}
     depends_on:
       mariadb:
@@ -47,36 +60,36 @@ services:
     depends_on:
       - backend
 
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: n8n_bot_local
-    restart: unless-stopped
-    ports:
-      - "15678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:15678
-      - NODE_ENV=production
-      - GENERIC_TIMEZONE=America/Sao_Paulo
-      - TZ=America/Sao_Paulo
-      - NODE_FUNCTION_ALLOW_EXTERNAL=better-sqlite3
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - EVOLUTION_SERVER_URL=http://evolution:8080
-      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-dev-evolution-key}
-      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-meu_whatsapp}
-      - HUMAN_PHONE=${HUMAN_PHONE:-5566999999999}
-      - BUSINESS_NAME=${BUSINESS_NAME:-Norte MT Sistemas}
-      - BACKEND_URL=http://backend:3000
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./bot_data:/data
-    depends_on:
-      - backend
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   container_name: n8n_bot_local
+  #   restart: unless-stopped
+  #   ports:
+  #     - "15678:5678"
+  #   environment:
+  #     - N8N_BASIC_AUTH_ACTIVE=true
+  #     - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+  #     - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:?defina N8N_PASSWORD no .env}
+  #     - N8N_HOST=localhost
+  #     - N8N_PORT=5678
+  #     - N8N_PROTOCOL=http
+  #     - WEBHOOK_URL=http://localhost:15678
+  #     - NODE_ENV=production
+  #     - GENERIC_TIMEZONE=America/Sao_Paulo
+  #     - TZ=America/Sao_Paulo
+  #     - NODE_FUNCTION_ALLOW_EXTERNAL=better-sqlite3
+  #     - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+  #     - EVOLUTION_SERVER_URL=http://evolution:8080
+  #     - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-dev-evolution-key}
+  #     - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-meu_whatsapp}
+  #     - HUMAN_PHONE=${HUMAN_PHONE:-5566999999999}
+  #     - BUSINESS_NAME=${BUSINESS_NAME:-Norte MT Sistemas}
+  #     - BACKEND_URL=http://backend:3000
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #     - ./bot_data:/data
+  #   depends_on:
+  #     - backend
 
   evolution:
     image: atendai/evolution-api:latest
@@ -86,7 +99,7 @@ services:
       - "18080:8080"
     environment:
       - SERVER_URL=http://localhost:18080
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-dev-evolution-key}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER:-botuser}:${POSTGRES_PASSWORD:-bot_senha_forte_aqui}@postgres:5432/${POSTGRES_DB:-evolution_db}
       - WEBSOCKET_ENABLED=true
@@ -121,7 +134,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_super_secret}
       - MYSQL_DATABASE=${DB_NAME:-whatsauto}
       - MYSQL_USER=${DB_USER:-whatsauto}
-      - MYSQL_PASSWORD=${DB_PASS:-whatsauto123}
+      - MYSQL_PASSWORD=${DB_PASS:?defina DB_PASS no .env}
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -161,7 +174,7 @@ services:
       retries: 5
 
 volumes:
-  n8n_data:
+  # n8n_data:
   evolution_data:
   postgres_data:
   mariadb_data:

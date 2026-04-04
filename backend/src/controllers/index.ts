@@ -1,6 +1,23 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import authService from '../services';
 import { AuthRequest } from '../middlewares';
+
+const loginSchema = z.object({
+  email: z.string().trim().email('Email invalido').max(255),
+  password: z.string().min(8, 'Senha deve ter no minimo 8 caracteres').max(128),
+});
+
+const registerSchema = z.object({
+  name: z.string().trim().min(2, 'Nome invalido').max(120),
+  email: z.string().trim().email('Email invalido').max(255),
+  password: z.string().min(8, 'Senha deve ter no minimo 8 caracteres').max(128),
+  companyName: z.string().trim().min(2, 'Nome da empresa invalido').max(120),
+  subdomain: z.string().trim().min(2, 'Subdominio invalido').max(60),
+  phone: z.string().trim().regex(/^\d{10,15}$/, 'Telefone invalido').optional(),
+});
+
+const normalizeSubdomain = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // ═══════════════════════════════════════════════════════════════
 // Auth Controller
@@ -9,12 +26,14 @@ import { AuthRequest } from '../middlewares';
 class AuthController {
   async login(req: Request, res: Response): Promise<void> {
     try {
-      const { email, password } = req.body;
+      const parsed = loginSchema.safeParse(req.body);
 
-      if (!email || !password) {
-        res.status(400).json({ error: 'Email e senha são obrigatórios' });
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.issues[0]?.message || 'Payload de login invalido' });
         return;
       }
+
+      const { email, password } = parsed.data;
 
       const result = await authService.login({ email, password });
       res.json(result);
@@ -26,10 +45,18 @@ class AuthController {
 
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const { name, email, password, companyName, subdomain, phone } = req.body;
+      const parsed = registerSchema.safeParse(req.body);
 
-      if (!name || !email || !password || !companyName || !subdomain) {
-        res.status(400).json({ error: 'Campos obrigatórios não preenchidos' });
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.issues[0]?.message || 'Payload de cadastro invalido' });
+        return;
+      }
+
+      const { name, email, password, companyName, subdomain, phone } = parsed.data;
+      const normalizedSubdomain = normalizeSubdomain(subdomain);
+
+      if (!normalizedSubdomain) {
+        res.status(400).json({ error: 'Subdominio invalido' });
         return;
       }
 
@@ -38,7 +65,7 @@ class AuthController {
         email,
         password,
         companyName,
-        subdomain: subdomain.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        subdomain: normalizedSubdomain,
         phone,
       });
 

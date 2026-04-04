@@ -10,6 +10,7 @@ interface Instance {
   evolution_instance: string
   status: 'connected' | 'disconnected' | 'connecting' | 'error'
   qr_code?: string
+  pairing_code?: string
 }
 
 const authStore = useAuthStore()
@@ -17,6 +18,8 @@ const instances = ref<Instance[]>([])
 const loading = ref(true)
 const actionLoadingById = ref<Record<number, boolean>>({})
 const qrCodeById = ref<Record<number, string>>({})
+const pairingCodeById = ref<Record<number, string>>({})
+const qrMessageById = ref<Record<number, string>>({})
 
 const form = ref({
   name: '',
@@ -33,18 +36,63 @@ const statusLabel: Record<Instance['status'], string> = {
   error: 'Erro',
 }
 
+const normalizeQrCode = (value: unknown): string => {
+  const raw = String(value || '').trim()
+
+  if (!raw) {
+    return ''
+  }
+
+  if (raw.startsWith('data:image/')) {
+    if (raw.startsWith('data:image/png;base64,QR_')) {
+      return ''
+    }
+
+    return raw
+  }
+
+  const compact = raw.replace(/\s+/g, '')
+  const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(compact) && compact.length > 100
+  if (looksLikeBase64) {
+    return `data:image/png;base64,${compact}`
+  }
+
+  return raw
+}
+
+const normalizePairingCode = (value: unknown): string => {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return ''
+  }
+
+  if (raw.startsWith('data:image/')) {
+    return ''
+  }
+
+  return raw
+}
+
 const loadInstances = async () => {
   try {
     const { data } = await api.get('/instances')
     instances.value = data
 
     const nextQrCodes = { ...qrCodeById.value }
+    const nextPairingCodes = { ...pairingCodeById.value }
     for (const instance of data as Instance[]) {
-      if (instance.qr_code) {
-        nextQrCodes[instance.id] = instance.qr_code
+      const normalized = normalizeQrCode(instance.qr_code)
+      if (normalized) {
+        nextQrCodes[instance.id] = normalized
+      }
+
+      const normalizedPairing = normalizePairingCode(instance.pairing_code)
+      if (normalizedPairing) {
+        nextPairingCodes[instance.id] = normalizedPairing
       }
     }
     qrCodeById.value = nextQrCodes
+    pairingCodeById.value = nextPairingCodes
   } finally {
     loading.value = false
   }
@@ -77,9 +125,24 @@ const fetchQrCode = async (instance: Instance) => {
   try {
     const encodedName = encodeURIComponent(instance.evolution_instance)
     const { data } = await api.get(`/revolution/instances/${encodedName}/qrcode`)
+    const normalized = normalizeQrCode(data.qrCode)
+    const pairingCode = normalizePairingCode(data.pairingCode || data.code)
+
     qrCodeById.value = {
       ...qrCodeById.value,
-      [instance.id]: String(data.qrCode || ''),
+      [instance.id]: normalized,
+    }
+
+    pairingCodeById.value = {
+      ...pairingCodeById.value,
+      [instance.id]: pairingCode,
+    }
+
+    qrMessageById.value = {
+      ...qrMessageById.value,
+      [instance.id]: normalized || pairingCode
+        ? ''
+        : 'QR Code e PIN indisponíveis no momento. Se a instância já estiver conectada, desconecte na Evolution e gere um novo pareamento.',
     }
   } finally {
     setActionLoading(instance.id, false)
@@ -90,12 +153,25 @@ const connectInstance = async (instance: Instance) => {
   setActionLoading(instance.id, true)
   try {
     const { data } = await api.post(`/instances/${instance.id}/connect`)
-    const qrCode = String(data?.revolution?.qrCode || data?.qr_code || '')
+    const qrCode = normalizeQrCode(data?.revolution?.qrCode || data?.qr_code)
+    const pairingCode = normalizePairingCode(data?.revolution?.pairingCode || data?.revolution?.code || data?.pairing_code)
 
     if (qrCode) {
       qrCodeById.value = {
         ...qrCodeById.value,
         [instance.id]: qrCode,
+      }
+
+      qrMessageById.value = {
+        ...qrMessageById.value,
+        [instance.id]: '',
+      }
+    }
+
+    if (pairingCode) {
+      pairingCodeById.value = {
+        ...pairingCodeById.value,
+        [instance.id]: pairingCode,
       }
     }
 
@@ -172,6 +248,15 @@ onMounted(async () => {
           />
           <p v-else class="break-all text-xs text-slate-600 dark:text-slate-300">{{ qrCodeById[instance.id] }}</p>
         </div>
+
+        <div v-if="pairingCodeById[instance.id]" class="mt-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">PIN de pareamento</p>
+          <p class="font-mono text-sm font-semibold tracking-widest text-slate-800 dark:text-slate-100">{{ pairingCodeById[instance.id] }}</p>
+        </div>
+
+        <p v-if="qrMessageById[instance.id]" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300">
+          {{ qrMessageById[instance.id] }}
+        </p>
       </div>
     </div>
   </div>

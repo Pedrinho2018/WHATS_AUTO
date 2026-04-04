@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { WorkflowBlockType, WorkflowConnection, WorkflowNode } from './types'
-import { WORKFLOW_BLOCKS } from './types'
+import { getActionDefinition, getCategoryLabel, WORKFLOW_BLOCKS } from './types'
 
 const props = defineProps<{
   nodes: WorkflowNode[]
   connections: WorkflowConnection[]
   selectedNodeId: string | null
+  connectFromNodeId?: string | null
 }>()
 
 const emit = defineEmits<{
   (event: 'drop-block', payload: { type: WorkflowBlockType; x: number; y: number }): void
   (event: 'select-node', nodeId: string): void
   (event: 'move-node', payload: { nodeId: string; x: number; y: number }): void
+  (event: 'remove-connection', connectionId: string): void
+  (event: 'clear-selection'): void
 }>()
 
 const canvasRef = ref<HTMLElement | null>(null)
@@ -38,13 +41,15 @@ const lines = computed(() => {
 
       return {
         id: connection.id,
+        fromNodeId: connection.fromNodeId,
+        toNodeId: connection.toNodeId,
         x1: from.x,
         y1: from.y,
         x2: to.x,
         y2: to.y,
       }
     })
-    .filter((line): line is { id: string; x1: number; y1: number; x2: number; y2: number } => Boolean(line))
+    .filter((line): line is { id: string; fromNodeId: string; toNodeId: string; x1: number; y1: number; x2: number; y2: number } => Boolean(line))
 })
 
 const onDragOver = (event: DragEvent) => {
@@ -125,6 +130,14 @@ const handleMouseUp = () => {
 const getBadgeClass = (type: WorkflowBlockType) => {
   return WORKFLOW_BLOCKS.find((block) => block.type === type)?.badgeClass || 'bg-slate-200 text-slate-700'
 }
+
+const getActionLabel = (node: WorkflowNode): string => {
+  return getActionDefinition(node.type, node.actionId)?.label || 'Sem acao'
+}
+
+const handleCanvasClick = () => {
+  emit('clear-selection')
+}
 </script>
 
 <template>
@@ -135,6 +148,7 @@ const getBadgeClass = (type: WorkflowBlockType) => {
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
+    @click="handleCanvasClick"
   >
     <svg class="pointer-events-none absolute inset-0 h-full w-full">
       <defs>
@@ -144,7 +158,7 @@ const getBadgeClass = (type: WorkflowBlockType) => {
       </defs>
       <line
         v-for="line in lines"
-        :key="line.id"
+        :key="`line-${line.id}`"
         :x1="line.x1"
         :y1="line.y1"
         :x2="line.x2"
@@ -155,22 +169,41 @@ const getBadgeClass = (type: WorkflowBlockType) => {
       />
     </svg>
 
+    <svg class="absolute inset-0 h-full w-full">
+      <line
+        v-for="line in lines"
+        :key="`hit-${line.id}`"
+        :x1="line.x1"
+        :y1="line.y1"
+        :x2="line.x2"
+        :y2="line.y2"
+        stroke="transparent"
+        stroke-width="14"
+        pointer-events="stroke"
+        @click.stop="emit('remove-connection', line.id)"
+      />
+    </svg>
+
     <div
       v-for="node in nodes"
       :key="node.id"
       class="absolute w-[172px] cursor-move rounded-xl border bg-white/95 px-3 py-2 shadow-sm dark:bg-slate-800/95"
-      :class="selectedNodeId === node.id ? 'border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-500/40' : 'border-slate-200 dark:border-slate-700'"
+      :class="[
+        selectedNodeId === node.id ? 'border-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-500/40' : 'border-slate-200 dark:border-slate-700',
+        connectFromNodeId === node.id ? 'ring-2 ring-sky-300 dark:ring-sky-500/50' : '',
+      ]"
       :style="{ left: `${node.x}px`, top: `${node.y}px` }"
       @mousedown="handleNodeMouseDown($event, node)"
       @click.stop="emit('select-node', node.id)"
     >
       <div class="flex items-center justify-between gap-2">
         <span class="rounded-full px-2 py-1 text-[11px] font-semibold" :class="getBadgeClass(node.type)">
-          {{ node.type }}
+          {{ getCategoryLabel(node.category) }}
         </span>
         <span class="text-[10px] uppercase tracking-wide text-slate-400">{{ node.id.slice(0, 4) }}</span>
       </div>
       <p class="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ node.label }}</p>
+      <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-300">{{ getActionLabel(node) }}</p>
     </div>
 
     <div v-if="nodes.length === 0" class="pointer-events-none absolute inset-0 grid place-content-center text-center">

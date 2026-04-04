@@ -36,14 +36,29 @@ Plataforma multi-tenant de atendimento WhatsApp da Norte MT Sistemas, com backen
 ## Testes e Qualidade
 
 - O backend possui testes unitários e de integração com Jest e Supertest.
-- O frontend possui lint e build com Vite, além de validação de tipos com Vue TSC.
-- No ambiente atual, a validação mais confiável para o frontend é `npm run build` e `npm run lint` dentro de `frontend/`.
+- O frontend possui testes unitários com Vitest, além de lint, build com Vite e validação de tipos com Vue TSC.
+- Para validação local completa do frontend, execute `npm run test`, `npm run lint` e `npm run build` dentro de `frontend/`.
 
 ## Integrações e Observações
 
 - A integração com a Evolution API está em modo mock no serviço de revolução, útil para desenvolvimento e testes locais.
-- O construtor visual de workflows salva o modelo no próprio fluxo, dentro de `trigger_config.workspaceModel`.
+- O construtor visual de workflows salva o modelo em persistência dedicada por fluxo no backend.
 - O frontend usa token JWT em `localStorage` e injeta automaticamente o cabeçalho `Authorization` nas requisições.
+- A base de realtime com Socket.IO v4 está habilitada no backend (`/socket.io` por padrão) e o frontend conecta automaticamente na inicialização.
+
+## Realtime com Socket.IO
+
+- Backend: inicializa Socket.IO junto do servidor HTTP e publica eventos `server:welcome` e `server:pong`.
+- O handshake do Socket.IO exige JWT valido (mesmo token do login HTTP), enviado em `auth.token` no cliente.
+- Conexoes autenticadas entram automaticamente nas salas por empresa e usuario (`company:{id}` e `user:{id}`).
+- O cliente pode assinar uma sala de conversa com `client:join-ticket` para receber eventos segmentados por ticket.
+- Frontend: conecta com `socket.io-client` e exibe status no dashboard.
+- Eventos de dominio emitidos: `server:ticket.created`, `server:ticket.updated` e `server:message.created`.
+- Variáveis opcionais de ambiente:
+	- `SOCKET_IO_PATH`: caminho do endpoint Socket.IO no backend (padrão: `/socket.io`).
+	- `VITE_SOCKET_URL`: URL completa do servidor Socket.IO no frontend (padrão: origem atual da página).
+	- `VITE_SOCKET_PATH`: caminho do endpoint Socket.IO no frontend (padrão: `/socket.io`).
+	- `VITE_DEBUG_SOCKET=true`: habilita logs de debug no console do navegador.
 
 ## Documentação da API
 
@@ -53,5 +68,4 @@ Plataforma multi-tenant de atendimento WhatsApp da Norte MT Sistemas, com backen
 ## Próximos Passos Recomendados
 
 - Consolidar as integrações reais com Evolution API e n8n.
-- Persistir o workflow visual em uma entidade própria, caso o modelo cresça.
-- Expandir a cobertura de testes do frontend e padronizar scripts entre raiz, backend e frontend.
+- Expandir a cobertura de testes do frontend para componentes e fluxos completos de tela.

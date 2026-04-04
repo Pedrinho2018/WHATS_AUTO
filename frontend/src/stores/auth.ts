@@ -1,101 +1,75 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '../services/api'
-
-interface User {
-  id: number
-  name: string
-  email: string
-  role: string
-  avatar?: string
-}
-
-interface Company {
-  id: number
-  name: string
-  subdomain: string
-  plan: string
-  status: string
-}
+import type { RegisterPayload } from '../application/auth/AuthRepository'
+import type { Company, User } from '../domain/auth/AuthModels'
+import { appContainer } from '../shared/di/container'
+import { connectSocket, disconnectSocket } from '../services/socket'
 
 export const useAuthStore = defineStore('auth', () => {
+  const authService = appContainer.authService
   const user = ref<User | null>(null)
   const company = ref<Company | null>(null)
-  const token = ref<string | null>(localStorage.getItem('token'))
+  const token = ref<string | null>(authService.getStoredToken())
 
   const isAuthenticated = computed(() => !!token.value)
 
   async function login(email: string, password: string) {
-    try {
-      const response = await api.post('/auth/login', { email, password })
-      const data = response.data
+    const result = await authService.login(email, password)
 
-      user.value = data.user
-      company.value = data.company
-      token.value = data.token
-
-      localStorage.setItem('token', data.token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
-
-      return { success: true }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } }
-      return { 
-        success: false, 
-        error: err.response?.data?.error || 'Erro ao fazer login' 
+    if (!result.ok) {
+      return {
+        success: false,
+        error: result.error,
       }
     }
+
+    user.value = result.data.user
+    company.value = result.data.company
+    token.value = result.data.token
+    connectSocket()
+
+    return { success: true }
   }
 
-  async function register(data: {
-    name: string
-    email: string
-    password: string
-    companyName: string
-    subdomain: string
-    phone?: string
-  }) {
-    try {
-      const response = await api.post('/auth/register', data)
-      const resData = response.data
+  async function register(data: RegisterPayload) {
+    const result = await authService.register(data)
 
-      user.value = resData.user
-      company.value = resData.company
-      token.value = resData.token
-
-      localStorage.setItem('token', resData.token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${resData.token}`
-
-      return { success: true }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } }
-      return { 
-        success: false, 
-        error: err.response?.data?.error || 'Erro ao criar conta' 
+    if (!result.ok) {
+      return {
+        success: false,
+        error: result.error,
       }
     }
+
+    user.value = result.data.user
+    company.value = result.data.company
+    token.value = result.data.token
+    connectSocket()
+
+    return { success: true }
   }
 
   async function fetchUser() {
     if (!token.value) return
 
-    try {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
-      const response = await api.get('/auth/me')
-      
-      user.value = response.data.user
-      company.value = response.data.company
-    } catch (error) {
+    const result = await authService.fetchProfile()
+
+    if (!result.ok) {
       logout()
+      return
     }
+
+    user.value = result.data.user
+    company.value = result.data.company
+    connectSocket()
   }
 
   function logout() {
     user.value = null
     company.value = null
     token.value = null
-    localStorage.removeItem('token')
-    delete api.defaults.headers.common['Authorization']
+    authService.logout()
+    disconnectSocket()
   }
 
   return {

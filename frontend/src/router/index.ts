@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { AuthIdentity } from '../domain/auth/AuthModels'
 import { useAuthStore } from '../stores/auth'
 
 declare module 'vue-router' {
@@ -81,8 +82,12 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.roles?.length) {
-    const userRole = authStore.user?.role
-    if (!userRole || !to.meta.roles.includes(userRole)) {
+    if (!authStore.user) {
+      return '/'
+    }
+
+    const identity = new AuthIdentity(authStore.user)
+    if (!identity.hasAnyRole(to.meta.roles)) {
       return '/'
     }
   } else if (!to.meta.requiresAuth && authStore.isAuthenticated) {

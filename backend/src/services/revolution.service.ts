@@ -18,6 +18,7 @@ interface RevolutionInstanceMock {
   webhookUrl?: string;
   phone?: string;
   qrCode: string;
+  pairingCode: string;
   lastUpdateAt: string;
 }
 
@@ -30,8 +31,18 @@ interface RevolutionMessageResponse {
   sentAt: string;
 }
 
+type EvolutionConfigScope =
+  | 'proxy'
+  | 'settings'
+  | 'webhook'
+  | 'rabbitmq'
+  | 'sqs'
+  | 'websocket'
+  | 'chatwoot';
+
 class RevolutionService {
   private readonly instances = new Map<string, RevolutionInstanceMock>();
+  private readonly integrationConfigs = new Map<EvolutionConfigScope, Map<string, Record<string, unknown>>>();
 
   private get mode(): string {
     return process.env.REVOLUTION_API_MODE || 'mock';
@@ -70,7 +81,134 @@ class RevolutionService {
   }
 
   private buildQrCode(instanceName: string): string {
-    return `data:image/png;base64,QR_${Buffer.from(instanceName).toString('base64')}`;
+    const label = instanceName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">',
+      '<rect width="320" height="320" fill="#ffffff"/>',
+      '<rect x="20" y="20" width="280" height="280" fill="#f8fafc" stroke="#0f172a" stroke-width="8"/>',
+      '<rect x="44" y="44" width="64" height="64" fill="#0f172a"/>',
+      '<rect x="212" y="44" width="64" height="64" fill="#0f172a"/>',
+      '<rect x="44" y="212" width="64" height="64" fill="#0f172a"/>',
+      '<text x="160" y="160" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="18" fill="#0f172a">QR MOCK</text>',
+      `<text x="160" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#334155">${label}</text>`,
+      '</svg>',
+    ].join('');
+
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  private buildPairingCode(instanceName: string): string {
+    const cleaned = instanceName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    return cleaned.slice(0, 8).padEnd(8, '0');
+  }
+
+  private extractRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  }
+
+  private extractString(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+  }
+
+  private extractQrCode(value: unknown): string {
+    if (!value || typeof value !== 'object') {
+      return this.extractString(value);
+    }
+
+    const record = value as Record<string, unknown>;
+    const directCandidates = [record.base64, record.qrCode, record.qrcode];
+
+    for (const candidate of directCandidates) {
+      if (typeof candidate === 'string' && candidate) {
+        return candidate;
+      }
+
+      if (candidate && typeof candidate === 'object') {
+        const nested = this.extractQrCode(candidate);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private extractPairingCode(value: unknown): string {
+    if (!value || typeof value !== 'object') {
+      return this.extractString(value);
+    }
+
+    const record = value as Record<string, unknown>;
+    const directCandidates = [
+      record.pairingCode,
+      record.pairing_code,
+      record.code,
+      record.pin,
+      record.pair,
+    ];
+
+    for (const candidate of directCandidates) {
+      if (typeof candidate === 'string' && candidate) {
+        return candidate;
+      }
+
+      if (candidate && typeof candidate === 'object') {
+        const nested = this.extractPairingCode(candidate);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private normalizeInstanceName(value: unknown, fallback: string): string {
+    if (!value || typeof value !== 'object') {
+      return fallback;
+    }
+
+    const record = value as Record<string, unknown>;
+    return this.extractString(record.instanceName || record.name || record.instance) || fallback;
+  }
+
+  private normalizeInstancePayload(
+    payload: Record<string, unknown>,
+    fallbackName: string
+  ): RevolutionInstanceMock {
+    const nestedInstance = this.extractRecord(payload.instance);
+    const instanceSource = Object.keys(nestedInstance).length > 0 ? nestedInstance : payload;
+    const qrSource =
+      payload.qrcode ?? payload.qrCode ?? payload.base64 ?? nestedInstance.qrcode ?? nestedInstance.qrCode ?? nestedInstance.base64;
+    const qrCode = this.extractQrCode(qrSource);
+    const pairingSource =
+      payload.pairingCode ??
+      payload.pairing_code ??
+      payload.code ??
+      payload.pin ??
+      nestedInstance.pairingCode ??
+      nestedInstance.pairing_code ??
+      nestedInstance.code ??
+      nestedInstance.pin;
+    const pairingCode = this.extractPairingCode(pairingSource);
+    const status = this.normalizeStatus(
+      instanceSource.status ||
+        instanceSource.connectionStatus ||
+        payload.status ||
+        payload.connectionStatus ||
+        payload.state
+    );
+
+    return {
+      instanceName: this.normalizeInstanceName(instanceSource, fallbackName),
+      status: status === 'error' && (qrCode || pairingCode) ? 'connecting' : status,
+      webhookUrl: this.extractString(instanceSource.webhookUrl || payload.webhookUrl) || undefined,
+      phone: this.extractString(instanceSource.phone || payload.phone) || undefined,
+      qrCode,
+      pairingCode,
+      lastUpdateAt: new Date().toISOString(),
+    };
   }
 
   private buildEndpoint(pathTemplate: string, instanceName?: string): string {
@@ -129,11 +267,21 @@ class RevolutionService {
     return parsed;
   }
 
-  private ensureInstance(instanceName: string): RevolutionInstanceMock {
-    const instance = this.instances.get(instanceName);
-    if (!instance) {
-      throw new Error('Instancia da Revolution API nao encontrada');
+  private getOrCreateMockInstance(instanceName: string): RevolutionInstanceMock {
+    const existing = this.instances.get(instanceName);
+    if (existing) {
+      return existing;
     }
+
+    const instance: RevolutionInstanceMock = {
+      instanceName,
+      status: 'disconnected',
+      qrCode: this.buildQrCode(instanceName),
+      pairingCode: this.buildPairingCode(instanceName),
+      lastUpdateAt: new Date().toISOString(),
+    };
+
+    this.instances.set(instanceName, instance);
     return instance;
   }
 
@@ -144,6 +292,26 @@ class RevolutionService {
     if (status.includes('connect')) return 'connecting';
     if (status.includes('close') || status.includes('disconnect')) return 'disconnected';
     return 'error';
+  }
+
+  private getScopeStore(scope: EvolutionConfigScope): Map<string, Record<string, unknown>> {
+    const existing = this.integrationConfigs.get(scope);
+    if (existing) {
+      return existing;
+    }
+
+    const created = new Map<string, Record<string, unknown>>();
+    this.integrationConfigs.set(scope, created);
+    return created;
+  }
+
+  private isInstanceNotFoundError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : '';
+    return (
+      message.includes('does not exist') ||
+      message.includes('nao existe') ||
+      message.includes('not found')
+    );
   }
 
   async listInstances(): Promise<RevolutionInstanceMock[]> {
@@ -161,15 +329,22 @@ class RevolutionService {
 
       return list.map((item) => {
         const parsed = item as Record<string, unknown>;
-        const instanceName = String(
-          parsed.instanceName || parsed.name || parsed.instance || ''
+        const instanceName = this.normalizeInstanceName(parsed, '');
+        const qrCode = this.extractQrCode(parsed.qrcode || parsed.qrCode || parsed.base64 || parsed.instance);
+        const pairingCode = this.extractPairingCode(
+          parsed.pairingCode || parsed.pairing_code || parsed.code || parsed.pin || parsed.instance
         );
         return {
           instanceName,
-          status: this.normalizeStatus(parsed.status || parsed.connectionStatus),
+          status: this.normalizeStatus(
+            parsed.status || parsed.connectionStatus || parsed.state || this.extractRecord(parsed.instance).state
+          ) === 'error' && (qrCode || pairingCode) ? 'connecting' : this.normalizeStatus(
+            parsed.status || parsed.connectionStatus || parsed.state || this.extractRecord(parsed.instance).state
+          ),
           webhookUrl: parsed.webhookUrl ? String(parsed.webhookUrl) : undefined,
           phone: parsed.phone ? String(parsed.phone) : undefined,
-          qrCode: parsed.qrcode ? String(parsed.qrcode) : '',
+          qrCode,
+          pairingCode,
           lastUpdateAt: new Date().toISOString(),
         };
       });
@@ -180,7 +355,7 @@ class RevolutionService {
 
   async createInstance(payload: RevolutionInstancePayload): Promise<RevolutionInstanceMock> {
     if (this.mode !== 'mock') {
-      await this.request<unknown>('POST', this.endpoints.create, {
+      const data = await this.request<Record<string, unknown>>('POST', this.endpoints.create, {
         instanceName: payload.instanceName,
         qrcode: true,
         integration: 'WHATSAPP-BAILEYS',
@@ -188,14 +363,7 @@ class RevolutionService {
         webhook: payload.webhookUrl || undefined,
       });
 
-      return {
-        instanceName: payload.instanceName,
-        status: 'connecting',
-        webhookUrl: payload.webhookUrl,
-        phone: payload.phone,
-        qrCode: '',
-        lastUpdateAt: new Date().toISOString(),
-      };
+      return this.normalizeInstancePayload(data, payload.instanceName);
     }
 
     if (this.instances.has(payload.instanceName)) {
@@ -208,6 +376,7 @@ class RevolutionService {
       webhookUrl: payload.webhookUrl,
       phone: payload.phone,
       qrCode: this.buildQrCode(payload.instanceName),
+      pairingCode: this.buildPairingCode(payload.instanceName),
       lastUpdateAt: new Date().toISOString(),
     };
 
@@ -217,25 +386,37 @@ class RevolutionService {
 
   async connectInstance(instanceName: string): Promise<RevolutionInstanceMock> {
     if (this.mode !== 'mock') {
-      const result = await this.request<Record<string, unknown>>(
-        'GET',
-        this.endpoints.connect,
-        undefined,
-        instanceName
-      );
+      let result: Record<string, unknown>;
 
-      return {
-        instanceName,
-        status: 'connected',
-        webhookUrl: undefined,
-        phone: undefined,
-        qrCode: result.base64 ? String(result.base64) : '',
-        lastUpdateAt: new Date().toISOString(),
-      };
+      try {
+        result = await this.request<Record<string, unknown>>(
+          'GET',
+          this.endpoints.connect,
+          undefined,
+          instanceName
+        );
+      } catch (error) {
+        if (!this.isInstanceNotFoundError(error)) {
+          throw error;
+        }
+
+        await this.createInstance({ instanceName });
+        result = await this.request<Record<string, unknown>>(
+          'GET',
+          this.endpoints.connect,
+          undefined,
+          instanceName
+        );
+      }
+
+      return this.normalizeInstancePayload(result, instanceName);
     }
 
-    const instance = this.ensureInstance(instanceName);
+    const instance = this.getOrCreateMockInstance(instanceName);
     instance.status = 'connected';
+    if (!instance.pairingCode) {
+      instance.pairingCode = this.buildPairingCode(instanceName);
+    }
     instance.lastUpdateAt = new Date().toISOString();
     this.instances.set(instanceName, instance);
     return instance;
@@ -250,15 +431,98 @@ class RevolutionService {
         webhookUrl: undefined,
         phone: undefined,
         qrCode: '',
+        pairingCode: '',
         lastUpdateAt: new Date().toISOString(),
       };
     }
 
-    const instance = this.ensureInstance(instanceName);
+    const instance = this.getOrCreateMockInstance(instanceName);
     instance.status = 'disconnected';
     instance.lastUpdateAt = new Date().toISOString();
     this.instances.set(instanceName, instance);
     return instance;
+  }
+
+  async restartInstance(instanceName: string): Promise<RevolutionInstanceMock> {
+    if (this.mode !== 'mock') {
+      return this.connectInstance(instanceName);
+    }
+
+    const instance = this.getOrCreateMockInstance(instanceName);
+    instance.status = 'connecting';
+    instance.lastUpdateAt = new Date().toISOString();
+    this.instances.set(instanceName, instance);
+
+    instance.status = 'connected';
+    instance.lastUpdateAt = new Date().toISOString();
+    this.instances.set(instanceName, instance);
+
+    return instance;
+  }
+
+  async deleteInstance(instanceName: string): Promise<{ instanceName: string; deleted: boolean }> {
+    if (this.mode !== 'mock') {
+      await this.request<unknown>('DELETE', '/instance/delete/{instanceName}', undefined, instanceName);
+      return { instanceName, deleted: true };
+    }
+
+    const deleted = this.instances.delete(instanceName);
+
+    for (const [, store] of this.integrationConfigs) {
+      store.delete(instanceName);
+    }
+
+    return { instanceName, deleted };
+  }
+
+  async setPresence(
+    instanceName: string,
+    presence: 'available' | 'unavailable'
+  ): Promise<{ instanceName: string; presence: 'available' | 'unavailable'; updatedAt: string }> {
+    const instance = this.getOrCreateMockInstance(instanceName);
+    instance.status = presence === 'available' ? 'connected' : 'disconnected';
+    instance.lastUpdateAt = new Date().toISOString();
+    this.instances.set(instanceName, instance);
+
+    return {
+      instanceName,
+      presence,
+      updatedAt: instance.lastUpdateAt,
+    };
+  }
+
+  async setScopedConfig(
+    scope: EvolutionConfigScope,
+    instanceName: string,
+    payload: Record<string, unknown>
+  ): Promise<{ instanceName: string; scope: EvolutionConfigScope; config: Record<string, unknown>; updatedAt: string }> {
+    const store = this.getScopeStore(scope);
+    const updatedAt = new Date().toISOString();
+
+    store.set(instanceName, {
+      ...payload,
+      updatedAt,
+    });
+
+    return {
+      instanceName,
+      scope,
+      config: store.get(instanceName) || {},
+      updatedAt,
+    };
+  }
+
+  async findScopedConfig(
+    scope: EvolutionConfigScope,
+    instanceName: string
+  ): Promise<{ instanceName: string; scope: EvolutionConfigScope; config: Record<string, unknown> | null }> {
+    const store = this.getScopeStore(scope);
+
+    return {
+      instanceName,
+      scope,
+      config: store.get(instanceName) || null,
+    };
   }
 
   async getInstanceStatus(instanceName: string): Promise<Pick<RevolutionInstanceMock, 'instanceName' | 'status' | 'lastUpdateAt'>> {
@@ -273,7 +537,7 @@ class RevolutionService {
       const instanceData = (data.instance as Record<string, unknown> | undefined) || undefined;
 
       return {
-        instanceName,
+        instanceName: this.normalizeInstanceName(instanceData || data, instanceName),
         status: this.normalizeStatus(
           data.status ||
           data.state ||
@@ -285,7 +549,7 @@ class RevolutionService {
       };
     }
 
-    const instance = this.ensureInstance(instanceName);
+    const instance = this.getOrCreateMockInstance(instanceName);
     return {
       instanceName: instance.instanceName,
       status: instance.status,
@@ -293,25 +557,51 @@ class RevolutionService {
     };
   }
 
-  async getQrCode(instanceName: string): Promise<{ instanceName: string; qrCode: string }> {
+  async getQrCode(instanceName: string): Promise<{ instanceName: string; qrCode: string; pairingCode: string }> {
     if (this.mode !== 'mock') {
-      const data = await this.request<Record<string, unknown>>(
-        'GET',
-        this.endpoints.qrcode,
-        undefined,
-        instanceName
-      );
+      let data: Record<string, unknown>;
+
+      try {
+        data = await this.request<Record<string, unknown>>(
+          'GET',
+          this.endpoints.qrcode,
+          undefined,
+          instanceName
+        );
+      } catch (error) {
+        if (!this.isInstanceNotFoundError(error)) {
+          throw error;
+        }
+
+        const connected = await this.connectInstance(instanceName);
+        if (connected.qrCode) {
+          return {
+            instanceName: connected.instanceName,
+            qrCode: connected.qrCode,
+            pairingCode: connected.pairingCode,
+          };
+        }
+
+        data = await this.request<Record<string, unknown>>(
+          'GET',
+          this.endpoints.qrcode,
+          undefined,
+          instanceName
+        );
+      }
 
       return {
-        instanceName,
-        qrCode: String(data.base64 || data.qrcode || ''),
+        instanceName: this.normalizeInstanceName(data.instance || data, instanceName),
+        qrCode: this.extractQrCode(data.base64 || data.qrcode || data.qrCode || data.instance || data),
+        pairingCode: this.extractPairingCode(data.pairingCode || data.pairing_code || data.code || data.pin || data.instance || data),
       };
     }
 
-    const instance = this.ensureInstance(instanceName);
+    const instance = this.getOrCreateMockInstance(instanceName);
     return {
       instanceName: instance.instanceName,
       qrCode: instance.qrCode,
+      pairingCode: instance.pairingCode,
     };
   }
 
@@ -341,7 +631,7 @@ class RevolutionService {
       };
     }
 
-    const instance = this.ensureInstance(payload.instanceName);
+    const instance = this.getOrCreateMockInstance(payload.instanceName);
     if (instance.status !== 'connected') {
       throw new Error('Instancia precisa estar conectada para enviar mensagens');
     }
@@ -358,3 +648,4 @@ class RevolutionService {
 }
 
 export default new RevolutionService();
+export type { EvolutionConfigScope };

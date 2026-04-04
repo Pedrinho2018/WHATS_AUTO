@@ -171,12 +171,17 @@ O builder visual fica em `frontend/src/components/workflow/`.
 - O workflow é um objeto com `nodes` e `connections`.
 - Cada nó tem `id`, `type`, `label`, `x` e `y`.
 - As conexões ligam `fromNodeId` a `toNodeId`.
-- No fluxo atual, o modelo visual é salvo no `trigger_config.workspaceModel` do fluxo selecionado.
+- O modelo visual agora é persistido em tabela dedicada `flow_workspaces`, vinculada ao fluxo via `flow_id`.
+
+### Endpoints de Workspace
+
+- `GET /api/flows/:id/workspace`: retorna o modelo visual do fluxo.
+- `PUT /api/flows/:id/workspace`: salva ou atualiza o modelo visual do fluxo.
 
 ### Limitações atuais
 
-- O builder é funcional no frontend, mas ainda não existe persistência em uma tabela dedicada.
-- As conexões e posições são mantidas no próprio modelo do fluxo.
+- O builder ainda não possui versionamento de alterações por histórico.
+- Ainda não há validação semântica de grafos (ex.: ciclos inválidos ou nós órfãos).
 
 ## 5. API e Documentação Automática
 
@@ -197,7 +202,7 @@ O builder visual fica em `frontend/src/components/workflow/`.
 
 - Em `REVOLUTION_API_MODE=real`, o backend depende da disponibilidade da API externa e das credenciais corretas.
 - O código do frontend usa visual/UX mais completa do que o backend atual oferece em persistência para o builder.
-- O script de testes do frontend não está padronizado com o restante da solução.
+- A suíte do frontend cobre utilitários e regras do builder; ainda falta ampliar testes de componentes e telas.
 
 ## 8. Leitura Rápida por Arquivo
 

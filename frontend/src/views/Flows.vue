@@ -3,7 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import WorkflowBuilder from '../components/workflow/WorkflowBuilder.vue'
-import { EMPTY_WORKFLOW_MODEL, type WorkflowModel } from '../components/workflow/types'
+import {
+  EMPTY_WORKFLOW_MODEL,
+  getBlockDefinition,
+  type WorkflowBlockType,
+  type WorkflowModel,
+} from '../components/workflow/types'
 
 interface Flow {
   id: number
@@ -15,6 +20,9 @@ interface Flow {
   settings?: {
     sector?: string
     assignedAgentIds?: number[]
+    source?: 'internal' | 'typebot'
+    typebotUrl?: string | null
+    typebotPublicId?: string | null
   }
 }
 
@@ -29,19 +37,31 @@ const flows = ref<Flow[]>([])
 const agents = ref<User[]>([])
 const loading = ref(true)
 const savingWorkspace = ref(false)
+const loadingWorkspace = ref(false)
 const workspaceNotice = ref('')
 const selectedFlowId = ref<number | null>(null)
 const workspaceDraft = ref<WorkflowModel>({ ...EMPTY_WORKFLOW_MODEL })
+const workspaceBase = ref<WorkflowModel>({ ...EMPTY_WORKFLOW_MODEL })
 
 const canManage = computed(() => ['admin', 'manager'].includes(authStore.user?.role || ''))
 
 const form = ref({
   name: '',
   description: '',
+  source: 'internal' as 'internal' | 'typebot',
+  typebot_url: '',
   trigger_type: 'keyword' as Flow['trigger_type'],
   sector: 'Geral',
   assignedAgentIds: [] as number[],
 })
+
+const getFlowSource = (flow: Flow | null): 'internal' | 'typebot' => {
+  if (!flow) {
+    return 'internal'
+  }
+
+  return flow.settings?.source === 'typebot' ? 'typebot' : 'internal'
+}
 
 const isWorkflowModel = (value: unknown): value is WorkflowModel => {
   if (!value || typeof value !== 'object') {
@@ -70,7 +90,7 @@ const modelNodes = (nodes: unknown[]): WorkflowModel['nodes'] => {
         return null
       }
 
-      const data = node as { id?: unknown; type?: unknown; label?: unknown; x?: unknown; y?: unknown }
+      const data = node as { id?: unknown; type?: unknown; label?: unknown; category?: unknown; actionId?: unknown; x?: unknown; y?: unknown }
       if (
         typeof data.id !== 'string' ||
         typeof data.type !== 'string' ||
@@ -81,10 +101,19 @@ const modelNodes = (nodes: unknown[]): WorkflowModel['nodes'] => {
         return null
       }
 
+      const definition = getBlockDefinition(data.type as WorkflowBlockType)
+      if (!definition) {
+        return null
+      }
+
+      const validActionId = typeof data.actionId === 'string' && definition.actions.some((action) => action.id === data.actionId) ? data.actionId : null
+
       return {
         id: data.id,
-        type: data.type,
+        type: definition.type,
         label: data.label,
+        category: definition.category,
+        actionId: validActionId || definition.actions[0]?.id || null,
         x: data.x,
         y: data.y,
       }
@@ -113,16 +142,41 @@ const modelConnections = (connections: unknown[]): WorkflowModel['connections'] 
     .filter((connection): connection is WorkflowModel['connections'][number] => Boolean(connection))
 }
 
-const loadWorkspaceFromFlow = (flow: Flow | undefined) => {
-  const rawConfig = flow?.trigger_config
-  if (!rawConfig) {
-    workspaceDraft.value = { ...EMPTY_WORKFLOW_MODEL }
+const setWorkspaceState = (model: WorkflowModel) => {
+  const normalized = normalizeWorkflowModel(model)
+  workspaceBase.value = normalized
+  workspaceDraft.value = normalizeWorkflowModel(normalized)
+}
+
+const loadWorkspaceFromApi = async (flowId: number) => {
+  const flow = flows.value.find((item) => item.id === flowId) || null
+  if (getFlowSource(flow) === 'typebot') {
+    setWorkspaceState({ ...EMPTY_WORKFLOW_MODEL })
+    workspaceNotice.value = 'Fluxos Typebot usam o editor do Typebot. O workspace visual interno fica desativado.'
+    loadingWorkspace.value = false
     return
   }
 
-  const config = rawConfig as { workspaceModel?: unknown }
-  const model = config.workspaceModel ?? rawConfig
-  workspaceDraft.value = normalizeWorkflowModel(model)
+  loadingWorkspace.value = true
+  workspaceNotice.value = ''
+
+  try {
+    const response = await api.get(`/flows/${flowId}/workspace`)
+    const payload = response.data as { workspaceModel?: unknown }
+    setWorkspaceState(normalizeWorkflowModel(payload.workspaceModel))
+  } catch {
+    setWorkspaceState({ ...EMPTY_WORKFLOW_MODEL })
+    workspaceNotice.value = 'Nao foi possivel carregar o modelo visual deste fluxo.'
+  } finally {
+    loadingWorkspace.value = false
+  }
+}
+
+const serializeWorkflowModel = (model: WorkflowModel) => {
+  return JSON.stringify({
+    nodes: [...model.nodes].sort((a, b) => a.id.localeCompare(b.id)),
+    connections: [...model.connections].sort((a, b) => a.id.localeCompare(b.id)),
+  })
 }
 
 const selectedFlow = computed(() => {
@@ -131,6 +185,16 @@ const selectedFlow = computed(() => {
   }
 
   return flows.value.find((flow) => flow.id === selectedFlowId.value) || null
+})
+
+const isTypebotFlow = computed(() => getFlowSource(selectedFlow.value) === 'typebot')
+
+const isWorkspaceDirty = computed(() => {
+  if (!selectedFlow.value || isTypebotFlow.value) {
+    return false
+  }
+
+  return serializeWorkflowModel(workspaceBase.value) !== serializeWorkflowModel(workspaceDraft.value)
 })
 
 const loadData = async () => {
@@ -145,11 +209,15 @@ const loadData = async () => {
 
     if (!selectedFlowId.value && flows.value.length > 0) {
       selectedFlowId.value = flows.value[0].id
-      loadWorkspaceFromFlow(flows.value[0])
+      await loadWorkspaceFromApi(flows.value[0].id)
+    }
+
+    if (selectedFlowId.value && !flows.value.some((flow) => flow.id === selectedFlowId.value)) {
+      selectedFlowId.value = flows.value[0]?.id || null
     }
 
     if (selectedFlowId.value) {
-      loadWorkspaceFromFlow(flows.value.find((flow) => flow.id === selectedFlowId.value))
+      await loadWorkspaceFromApi(selectedFlowId.value)
     }
   } finally {
     loading.value = false
@@ -161,10 +229,22 @@ const createFlow = async () => {
     return
   }
 
-  await api.post('/flows', form.value)
+  if (form.value.source === 'typebot' && !form.value.typebot_url.trim()) {
+    workspaceNotice.value = 'Informe a URL publica do Typebot para criar este fluxo.'
+    return
+  }
+
+  await api.post('/flows', {
+    ...form.value,
+    typebot_url: form.value.source === 'typebot' ? form.value.typebot_url.trim() : undefined,
+  })
+
+  workspaceNotice.value = ''
   form.value = {
     name: '',
     description: '',
+    source: 'internal',
+    typebot_url: '',
     trigger_type: 'keyword',
     sector: 'Geral',
     assignedAgentIds: [],
@@ -178,14 +258,35 @@ const toggleFlow = async (flow: Flow) => {
   await loadData()
 }
 
-const selectFlowWorkspace = (flowId: number) => {
+const selectFlowWorkspace = async (flowId: number) => {
+  if (selectedFlowId.value === flowId) {
+    return
+  }
+
+  if (isWorkspaceDirty.value) {
+    const shouldDiscard = window.confirm('Existem alteracoes nao salvas neste fluxo. Deseja descartar e trocar mesmo assim?')
+    if (!shouldDiscard) {
+      return
+    }
+  }
+
   selectedFlowId.value = flowId
-  loadWorkspaceFromFlow(flows.value.find((flow) => flow.id === flowId))
-  workspaceNotice.value = ''
+  await loadWorkspaceFromApi(flowId)
+}
+
+const handleFlowSelectChange = async (event: Event) => {
+  const target = event.target as HTMLSelectElement | null
+  const flowId = Number(target?.value || '')
+
+  if (!Number.isFinite(flowId) || flowId <= 0) {
+    return
+  }
+
+  await selectFlowWorkspace(flowId)
 }
 
 const saveWorkspace = async () => {
-  if (!selectedFlow.value || !canManage.value) {
+  if (!selectedFlow.value || !canManage.value || isTypebotFlow.value) {
     return
   }
 
@@ -193,17 +294,14 @@ const saveWorkspace = async () => {
   workspaceNotice.value = ''
 
   try {
-    const existingConfig = (selectedFlow.value.trigger_config || {}) as Record<string, unknown>
-
-    await api.patch(`/flows/${selectedFlow.value.id}`, {
-      trigger_config: {
-        ...existingConfig,
-        workspaceModel: workspaceDraft.value,
-      },
+    const response = await api.put(`/flows/${selectedFlow.value.id}/workspace`, {
+      workspaceModel: workspaceDraft.value,
     })
 
+    const payload = response.data as { workspaceModel?: unknown }
+    setWorkspaceState(normalizeWorkflowModel(payload.workspaceModel))
+
     workspaceNotice.value = 'Modelo visual salvo com sucesso.'
-    await loadData()
   } catch {
     workspaceNotice.value = 'Nao foi possivel salvar o modelo visual.'
   } finally {
@@ -246,7 +344,17 @@ onMounted(async () => {
       <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Criar fluxo por setor e agente</h2>
       <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
         <input v-model="form.name" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900" placeholder="Nome do fluxo" />
+        <select v-model="form.source" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900">
+          <option value="internal">Builder interno</option>
+          <option value="typebot">Typebot</option>
+        </select>
         <input v-model="form.sector" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900" placeholder="Setor (ex: Vendas, Suporte)" />
+        <input
+          v-if="form.source === 'typebot'"
+          v-model="form.typebot_url"
+          class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 md:col-span-2"
+          placeholder="URL publica do Typebot (cloud ou self-host)"
+        />
         <textarea v-model="form.description" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 md:col-span-2" rows="3" placeholder="Descrição" />
         <select v-model="form.trigger_type" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900">
           <option value="keyword">Keyword</option>
@@ -268,13 +376,13 @@ onMounted(async () => {
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Workspace de workflow (arrastar e soltar)</h2>
-          <p class="text-xs text-gray-500 dark:text-gray-400">Monte o fluxo visual de cada automacao por espaco de trabalho.</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Monte o fluxo visual de cada automacao por espaco de trabalho. Fluxos Typebot sao gerenciados diretamente no Typebot.</p>
         </div>
         <div class="flex items-center gap-2">
           <select
             :value="selectedFlowId || ''"
             class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-            @change="selectFlowWorkspace(Number(($event.target as HTMLSelectElement).value))"
+            @change="handleFlowSelectChange"
           >
             <option disabled value="">Selecione um fluxo</option>
             <option v-for="flow in flows" :key="flow.id" :value="flow.id">
@@ -285,20 +393,43 @@ onMounted(async () => {
           <button
             v-if="canManage"
             class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-            :disabled="!selectedFlow || savingWorkspace"
+            :disabled="!selectedFlow || savingWorkspace || !isWorkspaceDirty || isTypebotFlow"
             @click="saveWorkspace"
           >
             {{ savingWorkspace ? 'Salvando...' : 'Salvar modelo' }}
           </button>
+          <a
+            v-if="selectedFlow?.settings?.typebotUrl"
+            :href="selectedFlow.settings.typebotUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg border border-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+          >
+            Abrir no Typebot
+          </a>
         </div>
       </div>
 
       <p v-if="workspaceNotice" class="mt-3 text-xs" :class="workspaceNotice.includes('sucesso') ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'">
         {{ workspaceNotice }}
       </p>
+      <p v-else-if="isWorkspaceDirty" class="mt-3 text-xs text-amber-600 dark:text-amber-300">
+        Ha alteracoes nao salvas no modelo visual.
+      </p>
 
       <div class="mt-4">
-        <WorkflowBuilder v-model="workspaceDraft" />
+        <div v-if="loadingWorkspace" class="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          Carregando workspace do fluxo selecionado...
+        </div>
+        <div
+          v-if="isTypebotFlow"
+          class="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/50 p-6 text-sm text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200"
+        >
+          Este fluxo foi configurado para origem Typebot.
+          <span v-if="selectedFlow?.settings?.typebotPublicId"> Bot: {{ selectedFlow.settings.typebotPublicId }}.</span>
+          Edite o fluxo diretamente no painel do Typebot e mantenha aqui apenas os metadados de roteamento.
+        </div>
+        <WorkflowBuilder v-else v-model="workspaceDraft" />
       </div>
     </div>
 
@@ -319,6 +450,9 @@ onMounted(async () => {
             <p class="font-medium text-gray-900 dark:text-white">{{ flow.name }}</p>
             <p class="text-xs text-gray-600 dark:text-gray-400">
               Setor: {{ flow.settings?.sector || 'Geral' }} • Trigger: {{ flow.trigger_type }}
+            </p>
+            <p class="text-xs text-gray-600 dark:text-gray-400">
+              Origem: {{ flow.settings?.source === 'typebot' ? 'Typebot' : 'Builder interno' }}
             </p>
           </div>
           <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="flow.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'">

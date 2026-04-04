@@ -23,7 +23,7 @@ if [ ! -f .env ]; then
   echo "▶ Criando .env a partir do exemplo..."
   cp .env.example .env
   echo "⚠️  EDITE o arquivo .env com suas chaves antes de continuar!"
-  echo "   Especialmente: GEMINI_API_KEY, EVOLUTION_API_KEY, N8N_PASSWORD, ADMIN_EMAIL e ADMIN_PASSWORD"
+  echo "   Especialmente: GEMINI_API_KEY, EVOLUTION_API_KEY, EVOLUTION_WEBHOOK_SECRET, N8N_PASSWORD, ADMIN_EMAIL e ADMIN_PASSWORD"
   echo ""
   read -p "   Pressione ENTER após editar o .env..." _
 fi
@@ -36,7 +36,8 @@ echo "✅ Pasta bot_data/ criada (SQLite do bot ficará aqui)"
 # 4. Sobe os containers
 echo ""
 echo "▶ Iniciando containers (isso pode demorar na primeira vez)..."
-docker compose up -d
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.local.yml}"
+docker compose -f "$COMPOSE_FILE" up -d
 
 echo ""
 echo "▶ Aguardando containers ficarem prontos..."
@@ -47,6 +48,14 @@ echo ""
 echo "▶ Configurando instância na Evolution API..."
 
 source .env
+
+required_vars=(EVOLUTION_SERVER_URL EVOLUTION_API_KEY EVOLUTION_WEBHOOK_SECRET EVOLUTION_INSTANCE WEBHOOK_URL N8N_USER ADMIN_EMAIL ADMIN_PASSWORD)
+for var_name in "${required_vars[@]}"; do
+  if [ -z "${!var_name}" ]; then
+    echo "❌ Variável obrigatória ausente no .env: $var_name"
+    exit 1
+  fi
+done
 
 CREATE_RESP=$(curl -s -X POST "${EVOLUTION_SERVER_URL}/instance/create" \
   -H "apikey: ${EVOLUTION_API_KEY}" \
@@ -59,6 +68,27 @@ CREATE_RESP=$(curl -s -X POST "${EVOLUTION_SERVER_URL}/instance/create" \
 
 echo "Resposta da Evolution API: $CREATE_RESP"
 echo ""
+
+extract_connect_data() {
+  echo "$1" | node -e '
+    let input = "";
+    process.stdin.on("data", (chunk) => { input += chunk; });
+    process.stdin.on("end", () => {
+      try {
+        const data = JSON.parse(input);
+        const qr = data?.qrcode?.base64 || data?.base64 || data?.qrCode || data?.qrcode || "";
+        const pin = data?.code || data?.pairingCode || data?.pairing_code || "";
+        if (qr) console.log(`QR=${qr}`);
+        if (pin) console.log(`PIN=${pin}`);
+      } catch {
+        process.exit(0);
+      }
+    });
+  '
+}
+
+echo "▶ Conferindo dados retornados na criação..."
+extract_connect_data "$CREATE_RESP"
 
 # 6. Configura webhook na instância
 echo "▶ Configurando webhook na instância..."
@@ -84,6 +114,15 @@ sleep 3
 
 QR_RESP=$(curl -s -X GET "${EVOLUTION_SERVER_URL}/instance/connect/${EVOLUTION_INSTANCE}" \
   -H "apikey: ${EVOLUTION_API_KEY}" 2>/dev/null)
+
+echo "Resposta de connect: $QR_RESP"
+extract_connect_data "$QR_RESP"
+
+if ! echo "$QR_RESP" | grep -Eq '"qrcode"|"base64"|"code"|"pairingCode"'; then
+  echo "⚠️  A Evolution não retornou QR/PIN nessa chamada."
+  echo "   Verifique o status em: ${EVOLUTION_SERVER_URL}/manager"
+  echo "   Ou consulte: ${EVOLUTION_SERVER_URL}/instance/fetchInstances?instanceName=${EVOLUTION_INSTANCE}"
+fi
 
 echo ""
 echo "═══════════════════════════════════════════════════"

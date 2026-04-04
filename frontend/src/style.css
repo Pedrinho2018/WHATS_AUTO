@@ -120,3 +120,26 @@ h6 {
   opacity: 0;
   transform: translateY(8px);
 }
+
+@media (max-width: 1024px) {
+  body {
+    background:
+      radial-gradient(circle at 15% 4%, rgba(16, 185, 129, 0.2), transparent 30%),
+      radial-gradient(circle at 88% 2%, rgba(251, 146, 60, 0.18), transparent 28%),
+      var(--color-bg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -1,8 +1,17 @@
 import { Router } from 'express';
 import authController from '../controllers';
+import evolutionCompatController from '../controllers/evolution-compat.controller';
 import managementController from '../controllers/management.controller';
+import messagesController from '../controllers/messages.controller';
 import revolutionController from '../controllers/revolution.controller';
-import { authMiddleware, authRateLimit, roleMiddleware } from '../middlewares';
+import webhookController from '../controllers/webhook.controller';
+import {
+  authMiddleware,
+  authRateLimit,
+  roleMiddleware,
+  webhookAuthMiddleware,
+  webhookRateLimit,
+} from '../middlewares';
 
 // ═══════════════════════════════════════════════════════════════
 // Rotas
@@ -23,6 +32,62 @@ routes.get('/health', (_req, res) => {
 routes.use('/auth', authRateLimit);
 routes.post('/auth/login', authController.login.bind(authController));
 routes.post('/auth/register', authController.register.bind(authController));
+routes.post('/webhooks/evolution', webhookRateLimit, webhookAuthMiddleware, webhookController.evolutionInbound.bind(webhookController));
+
+// Evolution API compatibility
+routes.use([
+  '/instance',
+  '/message',
+  '/proxy',
+  '/settings',
+  '/webhook',
+  '/rabbitmq',
+  '/sqs',
+  '/websocket',
+  '/chatwoot',
+  '/chat',
+  '/label',
+  '/group',
+  '/call',
+  '/typebot',
+  '/evolutionBot',
+  '/openai',
+  '/dify',
+  '/flowise',
+  '/template',
+  '/s3',
+], webhookAuthMiddleware);
+
+routes.post('/instance/create', evolutionCompatController.createInstance.bind(evolutionCompatController));
+routes.get('/instance/fetchInstances', evolutionCompatController.fetchInstances.bind(evolutionCompatController));
+routes.get('/instance/connect/:instance', evolutionCompatController.connectInstance.bind(evolutionCompatController));
+routes.post('/instance/restart/:instance', evolutionCompatController.restartInstance.bind(evolutionCompatController));
+routes.post('/instance/setPresence/:instance', evolutionCompatController.setPresence.bind(evolutionCompatController));
+routes.get('/instance/connectionState/:instance', evolutionCompatController.connectionState.bind(evolutionCompatController));
+routes.delete('/instance/logout/:instance', evolutionCompatController.logoutInstance.bind(evolutionCompatController));
+routes.delete('/instance/delete/:instance', evolutionCompatController.deleteInstance.bind(evolutionCompatController));
+
+routes.post('/message/sendText/:instance', evolutionCompatController.sendText.bind(evolutionCompatController));
+
+const compatScopes = ['proxy', 'settings', 'webhook', 'rabbitmq', 'sqs', 'websocket', 'chatwoot'];
+
+compatScopes.forEach((scope) => {
+  routes.post(`/${scope}/set/:instance`, evolutionCompatController.setConfig.bind(evolutionCompatController));
+  routes.get(`/${scope}/find/:instance`, evolutionCompatController.findConfig.bind(evolutionCompatController));
+});
+
+routes.all('/message/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/chat/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/label/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/group/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/call/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/typebot/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/evolutionBot/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/openai/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/dify/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/flowise/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/template/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
+routes.all('/s3/*rest', evolutionCompatController.notImplemented.bind(evolutionCompatController));
 
 // ─── Rotas Protegidas ───────────────────────────────────────────
 routes.use(authMiddleware);
@@ -37,11 +102,15 @@ routes.get('/dashboard/summary', managementController.dashboard.bind(managementC
 routes.get('/tickets', managementController.listTickets.bind(managementController));
 routes.post('/tickets', managementController.createTicket.bind(managementController));
 routes.patch('/tickets/:id', managementController.updateTicket.bind(managementController));
+routes.get('/messages/tickets/:ticketId', messagesController.listTicketMessages.bind(messagesController));
+routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager', 'agent'), messagesController.sendTextToTicket.bind(messagesController));
 
 // Fluxos
 routes.get('/flows', managementController.listFlows.bind(managementController));
 routes.post('/flows', roleMiddleware('admin', 'manager'), managementController.createFlow.bind(managementController));
 routes.patch('/flows/:id', roleMiddleware('admin', 'manager'), managementController.updateFlow.bind(managementController));
+routes.get('/flows/:id/workspace', roleMiddleware('admin', 'manager', 'agent', 'viewer'), managementController.getFlowWorkspace.bind(managementController));
+routes.put('/flows/:id/workspace', roleMiddleware('admin', 'manager'), managementController.saveFlowWorkspace.bind(managementController));
 
 // Admin: usuarios/agentes
 routes.get('/users', roleMiddleware('admin', 'manager'), managementController.listUsers.bind(managementController));
@@ -62,10 +131,5 @@ routes.post('/revolution/instances/:instanceName/disconnect', roleMiddleware('ad
 routes.get('/revolution/instances/:instanceName/status', roleMiddleware('admin', 'manager', 'agent', 'viewer'), revolutionController.getStatus.bind(revolutionController));
 routes.get('/revolution/instances/:instanceName/qrcode', roleMiddleware('admin', 'manager', 'agent', 'viewer'), revolutionController.getQrCode.bind(revolutionController));
 routes.post('/revolution/messages/text', roleMiddleware('admin', 'manager', 'agent'), revolutionController.sendTextMessage.bind(revolutionController));
-
-// ─── Placeholder para futuras rotas ─────────────────────────────
-// routes.use('/companies', companyRoutes);
-// routes.use('/messages', messageRoutes);
-// routes.use('/webhooks', webhookRoutes);
 
 export default routes;

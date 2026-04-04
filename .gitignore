@@ -61,3 +61,5 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+Evolution API - v2.2.2.postman_collection.json

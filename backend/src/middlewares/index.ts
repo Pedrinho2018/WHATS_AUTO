@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { timingSafeEqual } from 'crypto';
 import { User, Company } from '../models';
 import logger from '../utils';
 
@@ -52,6 +53,75 @@ export const authRateLimit = createInMemoryRateLimit({
   max: 10,
   message: 'Muitas tentativas. Tente novamente em alguns minutos.',
 });
+
+export const webhookRateLimit = createInMemoryRateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: 'Muitas requisicoes de webhook. Tente novamente em alguns segundos.',
+});
+
+const secureCompare = (left: string, right: string): boolean => {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+};
+
+const extractBearerOrRawToken = (value: string): string => {
+  if (value.toLowerCase().startsWith('bearer ')) {
+    return value.slice(7).trim();
+  }
+
+  return value.trim();
+};
+
+const readSingleHeader = (value: string | string[] | undefined): string => {
+  if (Array.isArray(value)) {
+    return value[0] || '';
+  }
+
+  return value || '';
+};
+
+export const webhookAuthMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  const configuredSecret = process.env.EVOLUTION_WEBHOOK_SECRET || process.env.EVOLUTION_API_KEY;
+
+  if (!configuredSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('Webhook inbound sem segredo configurado (EVOLUTION_WEBHOOK_SECRET/EVOLUTION_API_KEY)');
+      res.status(500).json({ error: 'Configuracao de webhook ausente' });
+      return;
+    }
+
+    next();
+    return;
+  }
+
+  const providedRaw =
+    readSingleHeader(req.headers['x-webhook-secret']) ||
+    readSingleHeader(req.headers['x-evolution-api-key']) ||
+    readSingleHeader(req.headers['x-api-key']) ||
+    readSingleHeader(req.headers.apikey) ||
+    readSingleHeader(req.headers.authorization);
+
+  if (!providedRaw) {
+    res.status(401).json({ error: 'Webhook sem autenticacao' });
+    return;
+  }
+
+  const providedSecret = extractBearerOrRawToken(providedRaw);
+
+  if (!secureCompare(configuredSecret, providedSecret)) {
+    res.status(401).json({ error: 'Webhook nao autorizado' });
+    return;
+  }
+
+  next();
+};
 
 // ═══════════════════════════════════════════════════════════════
 // Tipos
@@ -157,6 +227,9 @@ export const errorHandler = (
 };
 
 export default {
+  authRateLimit,
+  webhookRateLimit,
+  webhookAuthMiddleware,
   authMiddleware,
   roleMiddleware,
   errorHandler,

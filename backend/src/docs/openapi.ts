@@ -232,6 +232,8 @@ const openApiSpec = {
         properties: {
           name: { type: 'string', example: 'Atendimento Comercial' },
           description: { type: 'string' },
+          source: { type: 'string', enum: ['internal', 'typebot'], example: 'typebot' },
+          typebot_url: { type: 'string', example: 'https://typebot.com/seu-bot' },
           trigger_type: { type: 'string', enum: ['keyword', 'greeting', 'menu', 'webhook', 'schedule'] },
           trigger_config: { type: 'object', additionalProperties: true },
           n8n_workflow_id: { type: 'string' },
@@ -245,6 +247,8 @@ const openApiSpec = {
         properties: {
           name: { type: 'string' },
           description: { type: 'string' },
+          source: { type: 'string', enum: ['internal', 'typebot'] },
+          typebot_url: { type: 'string' },
           trigger_type: { type: 'string', enum: ['keyword', 'greeting', 'menu', 'webhook', 'schedule'] },
           trigger_config: { type: 'object', additionalProperties: true },
           n8n_workflow_id: { type: 'string' },

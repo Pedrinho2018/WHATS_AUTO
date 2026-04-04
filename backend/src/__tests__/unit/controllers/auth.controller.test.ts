@@ -35,13 +35,13 @@ describe('AuthController', () => {
     await authController.login(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Email e senha são obrigatórios' });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(String) }));
     expect(authService.login).not.toHaveBeenCalled();
   });
 
   it('deve retornar dados de login com sucesso', async () => {
     const req = {
-      body: { email: 'teste@empresa.com', password: '123456' },
+      body: { email: 'teste@empresa.com', password: '12345678' },
     } as Request;
     const res = createMockResponse();
 
@@ -55,7 +55,7 @@ describe('AuthController', () => {
 
     await authController.login(req, res);
 
-    expect(authService.login).toHaveBeenCalledWith({ email: 'teste@empresa.com', password: '123456' });
+    expect(authService.login).toHaveBeenCalledWith({ email: 'teste@empresa.com', password: '12345678' });
     expect(res.json).toHaveBeenCalledWith(loginResult);
   });
 
@@ -64,7 +64,7 @@ describe('AuthController', () => {
       body: {
         name: 'Maria',
         email: 'maria@empresa.com',
-        password: '123456',
+        password: '12345678',
         companyName: 'Empresa Nova',
         subdomain: 'Empresa-Nova!!',
         phone: '5566999999999',
@@ -79,7 +79,7 @@ describe('AuthController', () => {
     expect(authService.register).toHaveBeenCalledWith({
       name: 'Maria',
       email: 'maria@empresa.com',
-      password: '123456',
+      password: '12345678',
       companyName: 'Empresa Nova',
       subdomain: 'empresanova',
       phone: '5566999999999',

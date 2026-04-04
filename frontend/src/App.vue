@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 
@@ -10,6 +10,11 @@ const authStore = useAuthStore()
 const isSidebarOpen = ref(false)
 const isLoading = ref(true)
 const isDarkMode = ref(false)
+const searchQuery = ref('')
+const viewportWidth = ref(1280)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+
+const isMobile = computed(() => viewportWidth.value < 1024)
 
 const navItems = computed(() => {
   const baseItems = [
@@ -25,6 +30,16 @@ const navItems = computed(() => {
   }
 
   return baseItems
+})
+
+const filteredNavItems = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+
+  if (!query) {
+    return navItems.value
+  }
+
+  return navItems.value.filter((item) => item.label.toLowerCase().includes(query))
 })
 
 const pageMeta = computed(() => {
@@ -51,6 +66,24 @@ const applyTheme = (enabled: boolean) => {
   document.documentElement.classList.toggle('dark', enabled)
 }
 
+const syncViewport = () => {
+  viewportWidth.value = window.innerWidth
+}
+
+const handleShortcutFocusSearch = (event: KeyboardEvent) => {
+  if (event.key !== '/' || isAuthRoute.value) {
+    return
+  }
+
+  const target = event.target as HTMLElement | null
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+    return
+  }
+
+  event.preventDefault()
+  searchInputRef.value?.focus()
+}
+
 const setThemeFromStorage = () => {
   const savedTheme = localStorage.getItem('theme')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -60,11 +93,21 @@ const setThemeFromStorage = () => {
 }
 
 onMounted(async () => {
+  syncViewport()
+  window.addEventListener('resize', syncViewport)
+  window.addEventListener('keydown', handleShortcutFocusSearch)
+
   setThemeFromStorage()
-  isSidebarOpen.value = window.innerWidth >= 1024
+  isSidebarOpen.value = !isMobile.value
 
   await authStore.fetchUser()
   isLoading.value = false
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncViewport)
+  window.removeEventListener('keydown', handleShortcutFocusSearch)
+  document.body.style.overflow = ''
 })
 
 watch(isDarkMode, (value) => {
@@ -72,8 +115,25 @@ watch(isDarkMode, (value) => {
   applyTheme(value)
 })
 
+watch(
+  () => route.path,
+  () => {
+    if (isMobile.value) {
+      isSidebarOpen.value = false
+    }
+  }
+)
+
+watch([isSidebarOpen, isMobile], ([sidebarOpen, mobile]) => {
+  document.body.style.overflow = mobile && sidebarOpen ? 'hidden' : ''
+})
+
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
+}
+
+const closeSidebar = () => {
+  isSidebarOpen.value = false
 }
 
 const toggleDarkMode = () => {
@@ -110,10 +170,23 @@ const isActive = (target: string) => route.path === target
     <div v-else class="relative flex min-h-screen overflow-hidden p-2 md:p-4">
       <div class="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.15),transparent_48%),radial-gradient(circle_at_top_right,rgba(251,146,60,0.12),transparent_44%)]"></div>
 
+      <button
+        v-if="isMobile && isSidebarOpen"
+        class="fixed inset-0 z-20 bg-slate-900/45 backdrop-blur-[1px]"
+        aria-label="Fechar menu lateral"
+        @click="closeSidebar"
+      ></button>
+
       <aside
         :class="[
           'fixed inset-y-2 left-2 z-30 flex flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/92 shadow-2xl shadow-slate-200/40 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900/88 dark:shadow-black/20 md:inset-y-4 md:left-4',
-          isSidebarOpen ? 'w-64' : 'w-16'
+          isMobile
+            ? isSidebarOpen
+              ? 'w-72 translate-x-0'
+              : 'pointer-events-none w-72 -translate-x-[110%]'
+            : isSidebarOpen
+              ? 'w-64'
+              : 'w-16'
         ]"
       >
         <div class="flex h-16 items-center justify-between border-b border-slate-200/70 px-4 dark:border-slate-800">
@@ -134,20 +207,25 @@ const isActive = (target: string) => route.path === target
 
         <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-3">
           <RouterLink
-            v-for="item in navItems"
+            v-for="item in filteredNavItems"
             :key="item.to"
             :to="item.to"
             :title="item.label"
+            :aria-label="item.label"
             :class="[
               'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
               isActive(item.to)
                 ? 'bg-gradient-to-r from-emerald-500/12 to-orange-400/12 text-emerald-700 ring-1 ring-emerald-400/30 dark:text-emerald-300'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
             ]"
+            @click="isMobile ? closeSidebar() : undefined"
           >
             <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
             <span v-if="isSidebarOpen" class="whitespace-nowrap">{{ item.label }}</span>
           </RouterLink>
+          <p v-if="!filteredNavItems.length" class="px-3 pt-3 text-xs text-slate-500 dark:text-slate-400">
+            Nenhum item encontrado para "{{ searchQuery }}".
+          </p>
         </nav>
 
         <div class="border-t border-slate-200/70 p-4 dark:border-slate-800">
@@ -162,6 +240,7 @@ const isActive = (target: string) => route.path === target
           <div class="flex min-w-0 items-center gap-3">
             <button
               class="rounded-2xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              :aria-label="isSidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'"
               @click="toggleSidebar"
             >
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,8 +263,11 @@ const isActive = (target: string) => route.path === target
                   </svg>
                 </span>
                 <input
+                  ref="searchInputRef"
+                  v-model="searchQuery"
                   type="text"
-                  placeholder="Buscar conversas, agentes ou fluxos"
+                  placeholder="Buscar menu (/)"
+                  aria-label="Buscar item de menu"
                   class="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-emerald-900/30"
                 />
               </label>
@@ -193,6 +275,7 @@ const isActive = (target: string) => route.path === target
 
             <button
               class="rounded-2xl border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              :aria-label="isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'"
               @click="toggleDarkMode"
             >
               <svg v-if="isDarkMode" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

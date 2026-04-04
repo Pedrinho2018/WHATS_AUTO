@@ -1,36 +1,36 @@
 services:
   # ─── Traefik (Reverse Proxy) ─────────────────────────────────────
-  traefik:
-    image: traefik:v3.1
-    container_name: whatsauto_traefik
-    restart: unless-stopped
-    command:
-      - --api.dashboard=false
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-seu-email@exemplo.com}
-      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.le.acme.httpchallenge=true
-      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-    networks:
-      - bot_network
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.traefik.rule=Host(`traefik.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
-      - traefik.http.routers.traefik.entrypoints=websecure
-      - traefik.http.routers.traefik.tls=true
-      - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.routers.traefik.tls.certresolver=le
+  # traefik:
+  #   image: traefik:v3.1
+  #   container_name: whatsauto_traefik
+  #   restart: unless-stopped
+  #   command:
+  #     - --api.dashboard=false
+  #     - --providers.docker=true
+  #     - --providers.docker.exposedbydefault=false
+  #     - --entrypoints.web.address=:80
+  #     - --entrypoints.web.http.redirections.entrypoint.to=websecure
+  #     - --entrypoints.web.http.redirections.entrypoint.scheme=https
+  #     - --entrypoints.websecure.address=:443
+  #     - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-seu-email@exemplo.com}
+  #     - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+  #     - --certificatesresolvers.le.acme.httpchallenge=true
+  #     - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #     - traefik_letsencrypt:/letsencrypt
+  #   networks:
+  #     - bot_network
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.traefik.rule=Host(`traefik.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
+  #     - traefik.http.routers.traefik.entrypoints=websecure
+  #     - traefik.http.routers.traefik.tls=true
+  #     - traefik.http.routers.traefik.service=api@internal
+  #     - traefik.http.routers.traefik.tls.certresolver=le
 
   # ═══════════════════════════════════════════════════════════════
   # NORTE MT SISTEMAS - WhatsApp Chatbot Multi-Tenant
@@ -116,43 +116,43 @@ services:
       - traefik.http.services.frontend.loadbalancer.server.port=80
 
   # ─── n8n (Automação) ────────────────────────────────────────────
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: n8n_bot
-    restart: unless-stopped
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
-      - N8N_HOST=${N8N_HOST:-n8n.nortemtsistemas.com.br}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - WEBHOOK_URL=${WEBHOOK_URL:-https://n8n.nortemtsistemas.com.br}
-      - NODE_ENV=production
-      - GENERIC_TIMEZONE=America/Sao_Paulo
-      - TZ=America/Sao_Paulo
-      - NODE_FUNCTION_ALLOW_EXTERNAL=better-sqlite3
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EVOLUTION_SERVER_URL=http://evolution:8080
-      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
-      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
-      - HUMAN_PHONE=${HUMAN_PHONE}
-      - BUSINESS_NAME=${BUSINESS_NAME}
-      - BACKEND_URL=http://backend:3000
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./bot_data:/data
-    networks:
-      - bot_network
-    depends_on:
-      - backend
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.n8n.rule=Host(`n8n.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
-      - traefik.http.routers.n8n.entrypoints=websecure
-      - traefik.http.routers.n8n.tls=true
-      - traefik.http.routers.n8n.tls.certresolver=le
-      - traefik.http.services.n8n.loadbalancer.server.port=5678
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   container_name: n8n_bot
+  #   restart: unless-stopped
+  #   environment:
+  #     - N8N_BASIC_AUTH_ACTIVE=true
+  #     - N8N_BASIC_AUTH_USER=${N8N_USER}
+  #     - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+  #     - N8N_HOST=${N8N_HOST:-n8n.nortemtsistemas.com.br}
+  #     - N8N_PORT=5678
+  #     - N8N_PROTOCOL=https
+  #     - WEBHOOK_URL=${WEBHOOK_URL:-https://n8n.nortemtsistemas.com.br}
+  #     - NODE_ENV=production
+  #     - GENERIC_TIMEZONE=America/Sao_Paulo
+  #     - TZ=America/Sao_Paulo
+  #     - NODE_FUNCTION_ALLOW_EXTERNAL=better-sqlite3
+  #     - GEMINI_API_KEY=${GEMINI_API_KEY}
+  #     - EVOLUTION_SERVER_URL=http://evolution:8080
+  #     - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+  #     - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE}
+  #     - HUMAN_PHONE=${HUMAN_PHONE}
+  #     - BUSINESS_NAME=${BUSINESS_NAME}
+  #     - BACKEND_URL=http://backend:3000
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #     - ./bot_data:/data
+  #   networks:
+  #     - bot_network
+  #   depends_on:
+  #     - backend
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.n8n.rule=Host(`n8n.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
+  #     - traefik.http.routers.n8n.entrypoints=websecure
+  #     - traefik.http.routers.n8n.tls=true
+  #     - traefik.http.routers.n8n.tls.certresolver=le
+  #     - traefik.http.services.n8n.loadbalancer.server.port=5678
 
   # ─── Evolution API (WhatsApp) ────────────────────────────────────
   evolution:
@@ -250,12 +250,12 @@ services:
       retries: 5
 
 volumes:
-  n8n_data:
+  # n8n_data:
   evolution_data:
   postgres_data:
   mariadb_data:
   redis_data:
-  traefik_letsencrypt:
+  # traefik_letsencrypt:
 
 networks:
   bot_network:
