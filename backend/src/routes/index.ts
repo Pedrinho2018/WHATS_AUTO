@@ -103,7 +103,7 @@ routes.get('/tickets', managementController.listTickets.bind(managementControlle
 routes.post('/tickets', managementController.createTicket.bind(managementController));
 routes.patch('/tickets/:id', managementController.updateTicket.bind(managementController));
 routes.get('/messages/tickets/:ticketId', messagesController.listTicketMessages.bind(messagesController));
-routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager', 'agent'), messagesController.sendTextToTicket.bind(messagesController));
+routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager', 'agent', 'viewer'), messagesController.sendTextToTicket.bind(messagesController));
 
 // Fluxos
 routes.get('/flows', managementController.listFlows.bind(managementController));

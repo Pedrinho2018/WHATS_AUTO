@@ -37,6 +37,7 @@ class MessagesController {
   async sendTextToTicket(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = req.user?.company_id;
+      const operatorName = req.user?.name?.trim() || 'Operador';
       const ticketId = Number(req.params.ticketId);
       const { text } = req.body as { text?: string };
 
@@ -57,10 +58,13 @@ class MessagesController {
         return;
       }
 
+      const normalizedText = text.trim();
+      const textWithOperator = `*${operatorName}*\n${normalizedText}`;
+
       const outbound = await revolutionService.sendTextMessage({
         instanceName: instance.evolution_instance,
         to: ticket.contact_phone,
-        text: text.trim(),
+        text: textWithOperator,
       });
 
       const message = await Message.create({
@@ -71,6 +75,10 @@ class MessagesController {
         direction: 'outbound',
         type: 'text',
         content: outbound.text,
+        metadata: {
+          operatorName,
+          originalText: normalizedText,
+        },
         status: outbound.status === 'sent' ? 'sent' : 'failed',
         sent_at: new Date(outbound.sentAt),
       });

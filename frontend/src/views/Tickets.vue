@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import { toast } from 'vue3-toastify'
 import api from '../services/api'
 import type { AxiosError } from 'axios'
+import { useAuthStore } from '../stores/auth'
 
 interface Ticket {
   id: number
@@ -20,12 +21,26 @@ interface InstanceOption {
   name: string
 }
 
+interface TicketMessage {
+  id: number
+  direction: 'inbound' | 'outbound'
+  content?: string
+  status: 'sent' | 'delivered' | 'read' | 'failed'
+  created_at?: string
+}
+
 const tickets = ref<Ticket[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const updatingTicketId = ref<number | null>(null)
 const creatingTicket = ref(false)
 const instances = ref<InstanceOption[]>([])
+const authStore = useAuthStore()
+const expandedTicketId = ref<number | null>(null)
+const messagesByTicketId = ref<Record<number, TicketMessage[]>>({})
+const messagesLoadingByTicketId = ref<Record<number, boolean>>({})
+const sendingMessageByTicketId = ref<Record<number, boolean>>({})
+const messageDraftByTicketId = ref<Record<number, string>>({})
 
 const newChatForm = ref({
   instanceId: '',
@@ -49,6 +64,8 @@ const statusClass: Record<Ticket['status'], string> = {
   resolved: 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
   closed: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
 }
+
+const canReplyToTicket = computed(() => ['admin', 'manager', 'agent', 'viewer'].includes(authStore.user?.role || ''))
 
 const filteredTickets = computed(() => {
   const term = searchQuery.value.trim().toLowerCase()
@@ -88,6 +105,76 @@ const loadInstances = async () => {
 
   if (!newChatForm.value.instanceId && instances.value.length > 0) {
     newChatForm.value.instanceId = String(instances.value[0].id)
+  }
+}
+
+const setMessagesLoading = (ticketId: number, value: boolean) => {
+  messagesLoadingByTicketId.value = {
+    ...messagesLoadingByTicketId.value,
+    [ticketId]: value,
+  }
+}
+
+const setSendingMessage = (ticketId: number, value: boolean) => {
+  sendingMessageByTicketId.value = {
+    ...sendingMessageByTicketId.value,
+    [ticketId]: value,
+  }
+}
+
+const loadTicketMessages = async (ticketId: number) => {
+  setMessagesLoading(ticketId, true)
+
+  try {
+    const { data } = await api.get(`/messages/tickets/${ticketId}`)
+    messagesByTicketId.value = {
+      ...messagesByTicketId.value,
+      [ticketId]: data,
+    }
+  } finally {
+    setMessagesLoading(ticketId, false)
+  }
+}
+
+const toggleConversation = async (ticketId: number) => {
+  if (expandedTicketId.value === ticketId) {
+    expandedTicketId.value = null
+    return
+  }
+
+  expandedTicketId.value = ticketId
+
+  if (!messagesByTicketId.value[ticketId]) {
+    await loadTicketMessages(ticketId)
+  }
+}
+
+const sendMessageToTicket = async (ticket: Ticket) => {
+  const text = (messageDraftByTicketId.value[ticket.id] || '').trim()
+
+  if (!text) {
+    toast.error('Digite uma mensagem para enviar.')
+    return
+  }
+
+  setSendingMessage(ticket.id, true)
+
+  try {
+    await api.post(`/messages/tickets/${ticket.id}/text`, { text })
+
+    messageDraftByTicketId.value = {
+      ...messageDraftByTicketId.value,
+      [ticket.id]: '',
+    }
+
+    toast.success('Mensagem enviada.')
+    await Promise.all([loadTicketMessages(ticket.id), loadTickets()])
+  } catch (error) {
+    const requestError = error as AxiosError<{ error?: string }>
+    const backendMessage = requestError.response?.data?.error
+    toast.error(backendMessage || 'Não foi possível enviar a mensagem.')
+  } finally {
+    setSendingMessage(ticket.id, false)
   }
 }
 
@@ -272,7 +359,7 @@ onMounted(async () => {
       </div>
 
       <div v-for="item in filteredTickets" :key="item.id" class="flex flex-col gap-3 rounded-lg border border-gray-200/80 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div class="w-full">
           <p class="font-semibold text-gray-900 dark:text-white">{{ item.contact_name || item.contact_phone }}</p>
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ item.instance?.name || 'Instância não vinculada' }} • Prioridade {{ item.priority }}
@@ -280,6 +367,61 @@ onMounted(async () => {
           <p v-if="item.updated_at" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Atualizado em {{ dayjs(item.updated_at).format('DD/MM/YYYY HH:mm') }}
           </p>
+
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+              @click="toggleConversation(item.id)"
+            >
+              {{ expandedTicketId === item.id ? 'Fechar conversa' : 'Abrir conversa' }}
+            </button>
+          </div>
+
+          <div v-if="expandedTicketId === item.id" class="mt-4 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-950/50">
+            <div v-if="messagesLoadingByTicketId[item.id]" class="text-sm text-gray-600 dark:text-gray-300">
+              Carregando mensagens...
+            </div>
+
+            <div v-else class="space-y-2">
+              <div v-if="!messagesByTicketId[item.id]?.length" class="text-sm text-gray-500 dark:text-gray-400">
+                Nenhuma mensagem nesta conversa ainda.
+              </div>
+
+              <div
+                v-for="message in messagesByTicketId[item.id] || []"
+                :key="message.id"
+                :class="[
+                  'max-w-[85%] rounded-xl px-3 py-2 text-sm',
+                  message.direction === 'outbound'
+                    ? 'ml-auto bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200'
+                    : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                ]"
+              >
+                <p class="whitespace-pre-wrap">{{ message.content || '(sem conteúdo)' }}</p>
+                <p class="mt-1 text-[11px] opacity-70">
+                  {{ dayjs(message.created_at).format('DD/MM HH:mm') }} • {{ message.status }}
+                </p>
+              </div>
+            </div>
+
+            <div v-if="canReplyToTicket" class="mt-3 flex gap-2">
+              <input
+                :value="messageDraftByTicketId[item.id] || ''"
+                type="text"
+                placeholder="Digite a resposta para o usuário"
+                class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+                @input="messageDraftByTicketId = { ...messageDraftByTicketId, [item.id]: ($event.target as HTMLInputElement).value }"
+                @keyup.enter="sendMessageToTicket(item)"
+              />
+              <button
+                class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                :disabled="sendingMessageByTicketId[item.id]"
+                @click="sendMessageToTicket(item)"
+              >
+                {{ sendingMessageByTicketId[item.id] ? 'Enviando...' : 'Enviar' }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="flex items-center gap-2">
