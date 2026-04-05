@@ -1,5 +1,15 @@
 # Guia da Aplicação e do Código
 
+## ATENÇÃO: REPOSITÓRIO PRIVADO
+
+Este documento é de uso interno. Não compartilhe conteúdo técnico, credenciais, endpoints internos ou dados operacionais fora dos canais autorizados.
+
+## Headlines Importantes
+
+- Todo acesso e desenvolvimento deve seguir o modelo multi-tenant com isolamento por empresa.
+- Antes de deploy, valide variáveis críticas de ambiente, autenticação JWT e integrações externas.
+- Mudanças em regras de negócio devem priorizar services e manter controllers enxutos.
+
 Este documento descreve como a aplicação está organizada, o papel de cada módulo e o fluxo principal entre frontend, backend e banco de dados.
 
 ## 1. Arquitetura Geral

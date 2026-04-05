@@ -1,5 +1,17 @@
 # WHATS_AUTO
 
+## ATENÇÃO: REPOSITÓRIO PRIVADO
+
+Este repositório é privado e destinado somente ao time autorizado da Norte MT Sistemas.
+
+Não compartilhe código, credenciais, URLs internas, dumps de banco ou prints de operação fora dos canais oficiais.
+
+## Headlines Importantes
+
+- Uso estritamente interno e confidencial.
+- Nunca versionar segredos reais em arquivos `.env`, scripts ou pipelines.
+- Em incidentes de segurança, comunicar imediatamente os responsáveis técnicos.
+
 Plataforma multi-tenant de atendimento WhatsApp da Norte MT Sistemas, com backend em Node.js + Express + TypeScript, frontend em Vue 3 e persistência em MariaDB. O projeto também integra n8n para automações e expõe a documentação da API via Swagger.
 
 ## Visão Geral
