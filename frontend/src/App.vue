@@ -17,6 +17,12 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 const isMobile = computed(() => viewportWidth.value < 1024)
 
 const navItems = computed(() => {
+  const userRole = authStore.user?.role || ''
+
+  if (userRole === 'agent' || userRole === 'viewer') {
+    return [{ label: 'Fila de Conversas', to: '/operator/tickets' }]
+  }
+
   const baseItems = [
     { label: 'Dashboard', to: '/' },
     { label: 'Conversas', to: '/tickets' },
@@ -25,7 +31,7 @@ const navItems = computed(() => {
     { label: 'Configuracoes', to: '/settings' },
   ]
 
-  if (authStore.user?.role === 'admin' || authStore.user?.role === 'manager') {
+  if (userRole === 'admin' || userRole === 'manager') {
     return [...baseItems, { label: 'Admin • Usuarios', to: '/admin/users' }]
   }
 
@@ -46,6 +52,7 @@ const pageMeta = computed(() => {
   const metaByPath: Record<string, { title: string; subtitle: string }> = {
     '/': { title: 'Dashboard', subtitle: 'Visao geral da operacao em tempo real' },
     '/tickets': { title: 'Conversas', subtitle: 'Fila de atendimento e historico de tickets' },
+    '/operator/tickets': { title: 'Fila de Conversas', subtitle: 'Atendimento operacional e resposta ao cliente' },
     '/instances': { title: 'Instancias', subtitle: 'Conexoes ativas e status do WhatsApp' },
     '/flows': { title: 'Automacoes', subtitle: 'Fluxos, regras e jornadas de atendimento' },
     '/settings': { title: 'Configuracoes', subtitle: 'Preferencias da conta e da equipe' },

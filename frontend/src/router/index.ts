@@ -26,32 +26,38 @@ const routes = [
     path: '/',
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
     path: '/tickets',
     name: 'Tickets',
     component: () => import('../views/Tickets.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
+    path: '/operator/tickets',
+    name: 'OperatorTickets',
+    component: () => import('../views/OperatorTickets.vue'),
+    meta: { requiresAuth: true, roles: ['agent', 'viewer'] }
   },
   {
     path: '/instances',
     name: 'Instances',
     component: () => import('../views/Instances.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
     path: '/flows',
     name: 'Flows',
     component: () => import('../views/Flows.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),
-    meta: { requiresAuth: true }
-  },
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  }
   {
     path: '/admin/users',
     name: 'AdminUsers',
@@ -69,6 +75,14 @@ const router = createRouter({
   routes
 })
 
+const getHomeByRole = (role?: string): string => {
+  if (role === 'agent' || role === 'viewer') {
+    return '/operator/tickets'
+  }
+
+  return '/'
+}
+
 // Navigation Guard
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
@@ -76,22 +90,26 @@ router.beforeEach(async (to) => {
   if (authStore.isAuthenticated && !authStore.user) {
     await authStore.fetchUser()
   }
-  
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return '/login'
   }
 
   if (to.meta.roles?.length) {
     if (!authStore.user) {
-      return '/'
+      return '/login'
     }
 
     const identity = new AuthIdentity(authStore.user)
     if (!identity.hasAnyRole(to.meta.roles)) {
-      return '/'
+      return getHomeByRole(authStore.user.role)
     }
   } else if (!to.meta.requiresAuth && authStore.isAuthenticated) {
-    return '/'
+    return getHomeByRole(authStore.user?.role)
+  }
+
+  if (to.path === '/' && authStore.isAuthenticated) {
+    return getHomeByRole(authStore.user?.role)
   }
 
   return true
