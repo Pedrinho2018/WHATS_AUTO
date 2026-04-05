@@ -76,6 +76,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - ADMIN_RESET_PASSWORD=${ADMIN_RESET_PASSWORD:-false}
     networks:
+      - traefik_public
       - bot_network
     depends_on:
       mariadb:
@@ -104,12 +105,13 @@ services:
     environment:
       - VITE_API_URL=${API_URL:-https://api.nortemtsistemas.com.br}
     networks:
+      - traefik_public
       - bot_network
     depends_on:
       - backend
     labels:
       - traefik.enable=true
-      - traefik.http.routers.frontend.rule=Host(`${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
+      - traefik.http.routers.frontend.rule=Host(`chat.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
       - traefik.http.routers.frontend.entrypoints=websecure
       - traefik.http.routers.frontend.tls=true
       - traefik.http.routers.frontend.tls.certresolver=le
@@ -181,6 +183,7 @@ services:
     volumes:
       - evolution_data:/evolution/instances
     networks:
+      - traefik_public
       - bot_network
     depends_on:
       postgres:
@@ -208,6 +211,7 @@ services:
       - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - bot_network
+      - traefik_public
     healthcheck:
       test: ["CMD", "mariadb", "-u${DB_USER:-whatsauto}", "-p${DB_PASS:-whatsauto123}", "-e", "SELECT 1"]
       interval: 10s
@@ -228,6 +232,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - bot_network
+      - traefik_public
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -242,6 +247,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
+      - traefik_public
       - bot_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -258,5 +264,7 @@ volumes:
   # traefik_letsencrypt:
 
 networks:
+  traefik_public:
+    external: true
   bot_network:
     driver: bridge
