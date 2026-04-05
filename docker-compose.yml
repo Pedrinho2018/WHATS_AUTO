@@ -165,7 +165,7 @@ services:
 
   # ─── Evolution API (WhatsApp) ────────────────────────────────────
   evolution:
-    image: atendai/evolution-api:v2.3.7
+    image: atendai/evolution-api:latest
     container_name: evolution_api
     restart: unless-stopped
     environment:
