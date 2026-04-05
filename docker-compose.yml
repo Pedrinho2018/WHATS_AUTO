@@ -47,7 +47,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://nortemtsistemas.com.br,https://api.nortemtsistemas.com.br,https://n8n.nortemtsistemas.com.br,https://evolution.nortemtsistemas.com.br}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://nortemtsistemas.com.br,https://chat.nortemtsistemas.com.br,https://api.nortemtsistemas.com.br,https://n8n.nortemtsistemas.com.br,https://evolution.nortemtsistemas.com.br}
       - DB_SYNC_ON_STARTUP=${DB_SYNC_ON_STARTUP:-false}
       - DB_HOST=mariadb
       - DB_PORT=3306
@@ -113,11 +113,16 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
-      - traefik.http.routers.frontend.rule=Host(`${ROOT_DOMAIN:-nortemtsistemas.com.br}`, `chat.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
+      - traefik.http.routers.frontend.rule=Host(`${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
       - traefik.http.routers.frontend.entrypoints=websecure
       - traefik.http.routers.frontend.tls=true
       - traefik.http.routers.frontend.tls.certresolver=myresolver
       - traefik.http.services.frontend.loadbalancer.server.port=80
+      - traefik.http.routers.frontend-chat.rule=Host(`chat.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)
+      - traefik.http.routers.frontend-chat.entrypoints=websecure
+      - traefik.http.routers.frontend-chat.tls=true
+      - traefik.http.routers.frontend-chat.tls.certresolver=myresolver
+      - traefik.http.routers.frontend-chat.service=frontend
 
   # ─── n8n (Automação) ────────────────────────────────────────────
   # n8n:

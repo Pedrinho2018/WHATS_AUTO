@@ -36,6 +36,24 @@ const statusLabel: Record<Instance['status'], string> = {
   error: 'Erro',
 }
 
+const normalizeStatus = (value: unknown): Instance['status'] => {
+  const status = String(value || '').toLowerCase()
+
+  if (status.includes('open') || status.includes('connected')) {
+    return 'connected'
+  }
+
+  if (status.includes('connect') || status.includes('pair')) {
+    return 'connecting'
+  }
+
+  if (status.includes('close') || status.includes('disconnect')) {
+    return 'disconnected'
+  }
+
+  return 'error'
+}
+
 const normalizeQrCode = (value: unknown): string => {
   const raw = String(value || '').trim()
 
@@ -93,9 +111,33 @@ const loadInstances = async () => {
     }
     qrCodeById.value = nextQrCodes
     pairingCodeById.value = nextPairingCodes
+
+    await syncInstancesWithRevolution(data as Instance[])
   } finally {
     loading.value = false
   }
+}
+
+const syncInstancesWithRevolution = async (items: Instance[]) => {
+  const nextInstances = await Promise.all(
+    items.map(async (instance) => {
+      try {
+        const encodedName = encodeURIComponent(instance.evolution_instance)
+        const { data } = await api.get(`/revolution/instances/${encodedName}/status`)
+        const nextStatus = normalizeStatus(data?.status ?? data?.state ?? data?.connectionStatus ?? data?.instance?.status)
+
+        if (nextStatus === 'error' && (qrCodeById.value[instance.id] || pairingCodeById.value[instance.id])) {
+          return { ...instance, status: 'connecting' as const }
+        }
+
+        return nextStatus === instance.status ? instance : { ...instance, status: nextStatus }
+      } catch {
+        return instance
+      }
+    })
+  )
+
+  instances.value = nextInstances
 }
 
 const createInstance = async () => {

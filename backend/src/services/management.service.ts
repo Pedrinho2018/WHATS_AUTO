@@ -104,6 +104,14 @@ export interface WorkflowWorkspaceModel extends Record<string, unknown> {
 }
 
 class ManagementService {
+  private normalizeRevolutionInstanceStatus(status: InstanceStatus, qrCode?: string, pairingCode?: string): InstanceStatus {
+    if (status === 'error' && (qrCode || pairingCode)) {
+      return 'connecting';
+    }
+
+    return status;
+  }
+
   private normalizeFlowSource(source: unknown): FlowSource {
     return source === 'typebot' ? 'typebot' : 'internal';
   }
@@ -269,10 +277,49 @@ class ManagementService {
   }
 
   async listInstances(companyId: number): Promise<Instance[]> {
-    return Instance.findAll({
+    const instances = await Instance.findAll({
       where: { company_id: companyId },
       order: [['created_at', 'DESC']],
     });
+
+    try {
+      const revolutionInstances = await revolutionService.listInstances();
+      const instancesByName = new Map(
+        revolutionInstances.map((instance) => [instance.instanceName, instance])
+      );
+
+      await Promise.all(
+        instances.map(async (instance) => {
+          const revolution = instancesByName.get(instance.evolution_instance);
+
+          if (!revolution) {
+            return;
+          }
+
+          const nextStatus = this.normalizeRevolutionInstanceStatus(
+            revolution.status,
+            revolution.qrCode,
+            revolution.pairingCode
+          );
+          const nextQrCode = revolution.qrCode || null;
+          const currentQrCode = instance.qr_code || null;
+
+          if (instance.status === nextStatus && currentQrCode === nextQrCode) {
+            return;
+          }
+
+          await instance.update({
+            status: nextStatus,
+            qr_code: nextQrCode || undefined,
+            last_connected_at: nextStatus === 'connected' ? new Date() : instance.last_connected_at,
+          });
+        })
+      );
+    } catch (error) {
+      logger.warn('Falha ao sincronizar instancias com a Revolution', error);
+    }
+
+    return instances;
   }
 
   async createInstance(companyId: number, input: CreateInstanceInput): Promise<Instance> {
