@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { RegisterPayload } from '../application/auth/AuthRepository'
 import type { Company, User } from '../domain/auth/AuthModels'
 import { appContainer } from '../shared/di/container'
 import { connectSocket, disconnectSocket } from '../services/socket'
@@ -15,24 +14,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string) {
     const result = await authService.login(email, password)
-
-    if (!result.ok) {
-      return {
-        success: false,
-        error: result.error,
-      }
-    }
-
-    user.value = result.data.user
-    company.value = result.data.company
-    token.value = result.data.token
-    connectSocket()
-
-    return { success: true }
-  }
-
-  async function register(data: RegisterPayload) {
-    const result = await authService.register(data)
 
     if (!result.ok) {
       return {
@@ -78,7 +59,6 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     isAuthenticated,
     login,
-    register,
     fetchUser,
     logout
   }

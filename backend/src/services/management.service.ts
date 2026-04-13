@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import DomainError from '../core/errors/domain.error';
-import { Flow, FlowWorkspace, Instance, Ticket, User } from '../models';
+import { Flow, FlowWorkspace, Instance, Ticket, User, MessageTemplate } from '../models';
 import revolutionService from './revolution.service';
 import logger from '../utils';
 

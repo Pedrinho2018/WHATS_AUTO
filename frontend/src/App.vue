@@ -27,7 +27,6 @@ const navItems = computed(() => {
     { label: 'Dashboard', to: '/' },
     { label: 'Conversas', to: '/tickets' },
     { label: 'Instancias', to: '/instances' },
-    { label: 'Automacoes', to: '/flows' },
     { label: 'Configuracoes', to: '/settings' },
   ]
 

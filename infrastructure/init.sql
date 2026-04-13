@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS companies (
     subdomain VARCHAR(100) UNIQUE NOT NULL,
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
+    cnpj VARCHAR(18),
     status ENUM('active', 'inactive', 'suspended', 'trial') DEFAULT 'trial',
     plan ENUM('basic', 'professional', 'enterprise') DEFAULT 'basic',
     trial_ends_at DATETIME,

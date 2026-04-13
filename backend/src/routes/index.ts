@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import authController from '../controllers';
+import adminController from '../controllers/admin.controller';
 import evolutionCompatController from '../controllers/evolution-compat.controller';
 import managementController from '../controllers/management.controller';
 import messagesController from '../controllers/messages.controller';
 import revolutionController from '../controllers/revolution.controller';
 import webhookController from '../controllers/webhook.controller';
+import botConfigController from '../controllers/bot-config.controller';
 import {
   authMiddleware,
   authRateLimit,
@@ -31,7 +33,7 @@ routes.get('/health', (_req, res) => {
 // ─── Rotas Públicas ─────────────────────────────────────────────
 routes.use('/auth', authRateLimit);
 routes.post('/auth/login', authController.login.bind(authController));
-routes.post('/auth/register', authController.register.bind(authController));
+// routes.post('/auth/register', authController.register.bind(authController)); // DESABILITADO - Use admin portal
 routes.post('/webhooks/evolution', webhookRateLimit, webhookAuthMiddleware, webhookController.evolutionInbound.bind(webhookController));
 
 // Evolution API compatibility
@@ -95,6 +97,13 @@ routes.use(authMiddleware);
 // Auth
 routes.get('/auth/me', authController.me.bind(authController));
 
+// Admin: Empresas e usuários (acesso restrito a super admin)
+routes.post('/admin/companies', roleMiddleware('admin'), adminController.createCompany.bind(adminController));
+routes.get('/admin/companies', roleMiddleware('admin'), adminController.listCompanies.bind(adminController));
+routes.post('/admin/users', roleMiddleware('admin'), adminController.createUser.bind(adminController));
+routes.get('/admin/companies/:companyId/users', roleMiddleware('admin'), adminController.listUsersByCompany.bind(adminController));
+routes.patch('/admin/users/:userId/reset-password', roleMiddleware('admin'), adminController.resetUserPassword.bind(adminController));
+
 // Dashboard
 routes.get('/dashboard/summary', managementController.dashboard.bind(managementController));
 
@@ -131,5 +140,15 @@ routes.post('/revolution/instances/:instanceName/disconnect', roleMiddleware('ad
 routes.get('/revolution/instances/:instanceName/status', roleMiddleware('admin', 'manager', 'agent', 'viewer'), revolutionController.getStatus.bind(revolutionController));
 routes.get('/revolution/instances/:instanceName/qrcode', roleMiddleware('admin', 'manager', 'agent', 'viewer'), revolutionController.getQrCode.bind(revolutionController));
 routes.post('/revolution/messages/text', roleMiddleware('admin', 'manager', 'agent'), revolutionController.sendTextMessage.bind(revolutionController));
+
+// Bot Configuration
+routes.post('/bot-config', roleMiddleware('admin', 'manager'), botConfigController.upsertBotConfig.bind(botConfigController));
+routes.get('/bot-config', roleMiddleware('admin', 'manager', 'agent', 'viewer'), botConfigController.getBotConfig.bind(botConfigController));
+routes.get('/bot-config/all', roleMiddleware('admin', 'manager'), botConfigController.getAllBotConfigs.bind(botConfigController));
+routes.get('/bot-config/:id', roleMiddleware('admin', 'manager'), botConfigController.getBotConfigById.bind(botConfigController));
+routes.get('/bot-config/check/hours', botConfigController.checkBusinessHours.bind(botConfigController));
+routes.get('/bot-config/messages/welcome', botConfigController.getWelcomeMessage.bind(botConfigController));
+routes.get('/bot-config/messages/standard', botConfigController.getStandardMessages.bind(botConfigController));
+routes.delete('/bot-config/:id', roleMiddleware('admin'), botConfigController.deleteBotConfig.bind(botConfigController));
 
 export default routes;

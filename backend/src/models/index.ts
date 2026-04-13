@@ -4,8 +4,10 @@ import User from './User';
 import Instance from './Instance';
 import Ticket from './Ticket';
 import Message from './Message';
+import MessageTemplate from './MessageTemplate';
 import Flow from './Flow';
 import FlowWorkspace from './FlowWorkspace';
+import BotConfig from './BotConfig';
 
 // ═══════════════════════════════════════════════════════════════
 // Associações entre Models
@@ -55,24 +57,36 @@ FlowWorkspace.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 Flow.hasOne(FlowWorkspace, { foreignKey: 'flow_id', as: 'workspace' });
 FlowWorkspace.belongsTo(Flow, { foreignKey: 'flow_id', as: 'flow' });
 
+// Company -> Message Templates (1:N)
+Company.hasMany(MessageTemplate, { foreignKey: 'company_id', as: 'message_templates' });
+MessageTemplate.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// Company -> BotConfigs (1:N)
+Company.hasMany(BotConfig, { foreignKey: 'company_id', as: 'bot_configs' });
+BotConfig.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
 export {
   sequelize,
   Company,
+  MessageTemplate,
   User,
   Instance,
   Ticket,
   Message,
   Flow,
-  FlowWorkspace
+  FlowWorkspace,
+  BotConfig
 };
 
 export default {
   sequelize,
+  MessageTemplate,
   Company,
   User,
   Instance,
   Ticket,
   Message,
   Flow,
-  FlowWorkspace
+  FlowWorkspace,
+  BotConfig
 };

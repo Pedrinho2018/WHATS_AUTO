@@ -17,12 +17,6 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/register',
-    name: 'Register',
-    component: () => import('../views/Register.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
     path: '/',
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue'),
@@ -47,15 +41,15 @@ const routes = [
     meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
-    path: '/flows',
-    name: 'Flows',
-    component: () => import('../views/Flows.vue'),
-    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
-  },
-  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
+    path: '/bot-settings',
+    name: 'BotSettings',
+    component: () => import('../views/BotSettings.vue'),
     meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {

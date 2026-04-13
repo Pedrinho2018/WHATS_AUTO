@@ -1,7 +1,7 @@
 import type { OperationResult } from '../../core/result/OperationResult'
 import { operationFailure, operationSuccess } from '../../core/result/OperationResult'
 import type { AuthSession, Company, User } from '../../domain/auth/AuthModels'
-import type { AuthRepository, RegisterPayload } from './AuthRepository'
+import type { AuthRepository } from './AuthRepository'
 
 export interface TokenStorage {
   getToken(): string | null
@@ -33,17 +33,6 @@ export class AuthService {
       return operationSuccess(session)
     } catch (error: unknown) {
       return operationFailure(this.extractError(error, 'Erro ao fazer login'))
-    }
-  }
-
-  async register(payload: RegisterPayload): Promise<OperationResult<AuthSession>> {
-    try {
-      const session = await this.repository.register(payload)
-      this.tokenStorage.saveToken(session.token)
-
-      return operationSuccess(session)
-    } catch (error: unknown) {
-      return operationFailure(this.extractError(error, 'Erro ao criar conta'))
     }
   }
 

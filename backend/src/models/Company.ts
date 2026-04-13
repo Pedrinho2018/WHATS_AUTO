@@ -11,6 +11,7 @@ interface CompanyAttributes {
   subdomain: string;
   email: string;
   phone?: string;
+  cnpj?: string;
   status: 'active' | 'inactive' | 'suspended' | 'trial';
   plan: 'basic' | 'professional' | 'enterprise';
   trial_ends_at?: Date;
@@ -29,6 +30,7 @@ class Company extends Model<CompanyAttributes, CompanyCreationAttributes> implem
   declare subdomain: string;
   declare email: string;
   declare phone?: string;
+  declare cnpj?: string;
   declare status: 'active' | 'inactive' | 'suspended' | 'trial';
   declare plan: 'basic' | 'professional' | 'enterprise';
   declare trial_ends_at?: Date;
@@ -64,6 +66,13 @@ Company.init(
     phone: {
       type: DataTypes.STRING(20),
       allowNull: true,
+    cnpj: {
+      type: DataTypes.STRING(18),
+      allowNull: true,
+      validate: {
+        is: /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/,
+      },
+    },
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive', 'suspended', 'trial'),

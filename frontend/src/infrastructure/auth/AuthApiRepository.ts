@@ -1,4 +1,4 @@
-import type { AuthRepository, RegisterPayload } from '../../application/auth/AuthRepository'
+import type { AuthRepository } from '../../application/auth/AuthRepository'
 import type { HttpClient } from '../../core/http/HttpClient'
 import type { AuthSession, Company, User } from '../../domain/auth/AuthModels'
 
@@ -22,16 +22,6 @@ export class AuthApiRepository implements AuthRepository {
 
   async login(email: string, password: string): Promise<AuthSession> {
     const response = await this.httpClient.post<AuthSessionResponse>('/auth/login', { email, password })
-
-    return {
-      user: response.data.user,
-      company: response.data.company,
-      token: response.data.token,
-    }
-  }
-
-  async register(payload: RegisterPayload): Promise<AuthSession> {
-    const response = await this.httpClient.post<AuthSessionResponse>('/auth/register', payload)
 
     return {
       user: response.data.user,
