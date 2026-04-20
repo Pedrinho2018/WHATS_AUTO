@@ -109,7 +109,6 @@ services:
     networks:
       - traefik_public
       - bot_network
-      - traefik-public
     depends_on:
       - backend
     labels:
@@ -123,7 +122,7 @@ services:
       - traefik.http.routers.frontend-chat.entrypoints=websecure
       - traefik.http.routers.frontend-chat.tls=true
       - traefik.http.routers.frontend-chat.tls.certresolver=myresolver
-      - traefik.http.routers.frontend-chat.service=frontend
+      - traefik.http.routers.frontend-chat.service=whatsauto_frontend
 
   # ─── n8n (Automação) ────────────────────────────────────────────
   # n8n:
@@ -174,7 +173,8 @@ services:
       - SERVER_URL=${EVOLUTION_SERVER_URL:-https://evolution.nortemtsistemas.com.br}
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_bot:5432/${POSTGRES_DB:-evolution}
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_GLOBAL_EVENTS=true
       - WEBSOCKET_EVENTS_QRCODE_UPDATED=true
