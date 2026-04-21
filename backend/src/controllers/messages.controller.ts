@@ -1,11 +1,13 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares';
-import { Instance, Message, Ticket } from '../models';
-import revolutionService from '../services/revolution.service';
+import ConversationMessageApplication from '../application/chatbot/conversation-message.application';
+import RevolutionMessageProvider from '../application/chatbot/providers/revolution-message.provider';
+import DomainError from '../core/errors/domain.error';
 import logger from '../utils';
-import { emitMessageCreated, emitTicketUpdated } from '../realtime/events';
 
 class MessagesController {
+  private readonly conversationMessageApplication = new ConversationMessageApplication(new RevolutionMessageProvider());
+
   async listTicketMessages(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = req.user?.company_id;
@@ -16,19 +18,15 @@ class MessagesController {
         return;
       }
 
-      const ticket = await Ticket.findOne({ where: { id: ticketId, company_id: companyId } });
-      if (!ticket) {
-        res.status(404).json({ error: 'Conversa nao encontrada' });
-        return;
-      }
-
-      const messages = await Message.findAll({
-        where: { company_id: companyId, ticket_id: ticketId },
-        order: [['created_at', 'ASC']],
-      });
+      const messages = await this.conversationMessageApplication.listTicketMessages(companyId, ticketId);
 
       res.json(messages);
     } catch (error) {
+      if (error instanceof DomainError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+
       const message = error instanceof Error ? error.message : 'Erro ao listar mensagens';
       res.status(500).json({ error: message });
     }
@@ -46,52 +44,23 @@ class MessagesController {
         return;
       }
 
-      const ticket = await Ticket.findOne({ where: { id: ticketId, company_id: companyId } });
-      if (!ticket) {
-        res.status(404).json({ error: 'Conversa nao encontrada' });
-        return;
-      }
-
-      const instance = await Instance.findOne({ where: { id: ticket.instance_id, company_id: companyId } });
-      if (!instance) {
-        res.status(404).json({ error: 'Instancia nao encontrada' });
-        return;
-      }
-
-      const normalizedText = text.trim();
-      const textWithOperator = `*${operatorName}*\n${normalizedText}`;
-
-      const outbound = await revolutionService.sendTextMessage({
-        instanceName: instance.evolution_instance,
-        to: ticket.contact_phone,
-        text: textWithOperator,
-      });
-
-      const message = await Message.create({
-        company_id: companyId,
-        ticket_id: ticket.id,
-        instance_id: instance.id,
-        message_id: outbound.messageId,
-        direction: 'outbound',
-        type: 'text',
-        content: outbound.text,
-        metadata: {
-          operatorName,
-          originalText: normalizedText,
-        },
-        status: outbound.status === 'sent' ? 'sent' : 'failed',
-        sent_at: new Date(outbound.sentAt),
-      });
-
-      await ticket.update({ last_message_at: new Date() });
-      emitMessageCreated(message);
-      emitTicketUpdated(ticket);
+      const result = await this.conversationMessageApplication.sendTextToTicket(
+        companyId,
+        ticketId,
+        operatorName,
+        text
+      );
 
       res.status(201).json({
-        message,
-        provider: outbound,
+        message: result.message,
+        provider: result.provider,
       });
     } catch (error) {
+      if (error instanceof DomainError) {
+        res.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+
       logger.error('Falha ao enviar mensagem para conversa', error);
       const message = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
       res.status(502).json({ error: message });

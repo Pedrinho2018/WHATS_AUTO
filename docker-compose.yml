@@ -3,6 +3,8 @@
   # Repositório: https://nortemtsistemas.com.br/
   # ═══════════════════════════════════════════════════════════════
 
+services:
+
   # ─── Backend API (Node.js + Express) ─────────────────────────────
   backend:
     build:
@@ -10,6 +12,7 @@
       dockerfile: Dockerfile
     container_name: whatsauto_backend
     restart: unless-stopped
+    init: true
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -20,7 +23,7 @@
       - DB_PORT=3306
       - DB_NAME=${DB_NAME:-whatsauto}
       - DB_USER=${DB_USER:-whatsauto}
-      - DB_PASS=${DB_PASS:-whatsauto123}
+      - DB_PASS=${DB_PASS}
       - JWT_SECRET=${JWT_SECRET}
       - EVOLUTION_SERVER_URL=http://evolution:8080
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
@@ -45,6 +48,8 @@
     networks:
       - traefik-public
       - bot_network
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       mariadb:
         condition: service_healthy
@@ -54,6 +59,10 @@
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
@@ -70,11 +79,14 @@
       dockerfile: Dockerfile
     container_name: whatsauto_frontend
     restart: unless-stopped
+    init: true
     environment:
       - VITE_API_URL=${API_URL:-https://api.nortemtsistemas.com.br}
     networks:
       - traefik-public
       - bot_network
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - backend
     labels:
@@ -90,6 +102,7 @@
     image: atendai/evolution-api:latest
     container_name: evolution_api
     restart: unless-stopped
+    init: true
     environment:
       - NODE_OPTIONS=--dns-result-order=ipv4first
       - SERVER_URL=${EVOLUTION_SERVER_URL:-https://evolution.nortemtsistemas.com.br}
@@ -102,8 +115,8 @@
       - WEBSOCKET_EVENTS_QRCODE_UPDATED=true
       - WEBSOCKET_EVENTS_CONNECTION_UPDATE=true
       - CACHE_REDIS_ENABLED=false
-      - LOG_LEVEL=DEBUG
-      - LOG_BAILEYS=debug
+      - LOG_LEVEL=WARN
+      - LOG_BAILEYS=error
       - CONFIG_SESSION_PHONE_VERSION=
       - LOG_COLOR=true
       - DEL_INSTANCE=false
@@ -140,10 +153,10 @@
     container_name: whatsauto_mariadb
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS:-root_super_secret}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
       - MYSQL_DATABASE=${DB_NAME:-whatsauto}
       - MYSQL_USER=${DB_USER:-whatsauto}
-      - MYSQL_PASSWORD=${DB_PASS:-whatsauto123}
+      - MYSQL_PASSWORD=${DB_PASS}
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -151,7 +164,7 @@
       - bot_network
       - traefik-public
     healthcheck:
-      test: ["CMD", "mariadb", "-u${DB_USER:-whatsauto}", "-p${DB_PASS:-whatsauto123}", "-e", "SELECT 1"]
+      test: ["CMD", "mariadb", "-u${DB_USER:-whatsauto}", "-p${DB_PASS}", "-e", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 10

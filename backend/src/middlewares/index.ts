@@ -23,6 +23,18 @@ const createInMemoryRateLimit = ({
   keyGenerator,
 }: RateLimitOptions) => {
   const hits = new Map<string, RateLimitEntry>();
+  const intervalMs = 60 * 1000;
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+
+    for (const [key, entry] of hits.entries()) {
+      if (entry.resetAt <= now) {
+        hits.delete(key);
+      }
+    }
+  }, intervalMs);
+
+  cleanupTimer.unref();
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const key = keyGenerator?.(req) || req.ip || req.socket.remoteAddress || 'anonymous';
@@ -30,12 +42,21 @@ const createInMemoryRateLimit = ({
     const entry = hits.get(key);
 
     if (!entry || entry.resetAt <= now) {
+      res.setHeader('X-RateLimit-Limit', String(max));
+      res.setHeader('X-RateLimit-Remaining', String(max - 1));
+      res.setHeader('X-RateLimit-Reset', String(Math.ceil((now + windowMs) / 1000)));
       hits.set(key, { count: 1, resetAt: now + windowMs });
       next();
       return;
     }
 
+    res.setHeader('X-RateLimit-Limit', String(max));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(max - entry.count, 0)));
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(entry.resetAt / 1000)));
+
     if (entry.count >= max) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSeconds));
       res.status(429).json({
         error: message,
       });

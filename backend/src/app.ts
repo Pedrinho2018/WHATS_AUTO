@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import { randomUUID } from 'crypto';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
@@ -49,7 +50,12 @@ app.use(
 		credentials: true,
 	})
 );
-app.use(helmet());
+app.use(
+	helmet({
+		crossOriginResourcePolicy: { policy: 'cross-origin' },
+	})
+);
+app.use(compression());
 app.use((req, res, next) => {
 	const requestId = (req.headers['x-request-id'] as string | undefined) || randomUUID();
 	res.setHeader('x-request-id', requestId);
@@ -61,6 +67,7 @@ morgan.token('request-id', (req) => (req.headers['x-request-id'] as string | und
 
 app.use(
 	morgan(':method :url :status :res[content-length] - :response-time ms request_id=:request-id', {
+		skip: (req) => req.path === '/api/health',
 		stream: {
 			write: (message: string) => {
 				logger.info(message.trim());
@@ -68,7 +75,8 @@ app.use(
 		},
 	})
 );
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb', strict: true }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
 if (docsEnabled) {
 	app.get('/api/docs.json', (_req, res) => {

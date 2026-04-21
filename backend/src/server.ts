@@ -7,6 +7,10 @@ import { initSocketServer } from './realtime/socket';
 const port = process.env.PORT || 3001;
 
 const server = http.createServer(app);
+server.requestTimeout = Number(process.env.HTTP_REQUEST_TIMEOUT_MS || 30_000);
+server.headersTimeout = Number(process.env.HTTP_HEADERS_TIMEOUT_MS || 15_000);
+server.keepAliveTimeout = Number(process.env.HTTP_KEEPALIVE_TIMEOUT_MS || 5_000);
+server.maxRequestsPerSocket = Number(process.env.HTTP_MAX_REQUESTS_PER_SOCKET || 1_000);
 initSocketServer(server);
 
 const ensureSecurityEnv = (): void => {
