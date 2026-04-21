@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middlewares';
 import retailService from '../services/retail.service';
 import logger from '../utils';
 
@@ -7,11 +8,23 @@ import logger from '../utils';
 // ═══════════════════════════════════════════════════════════════
 
 class RetailController {
+  private getCompanyId(req: AuthRequest, res: Response): number | null {
+    const companyId = req.user?.company_id;
+
+    if (typeof companyId !== 'number') {
+      res.status(401).json({ error: 'Usuário não autenticado' });
+      return null;
+    }
+
+    return companyId;
+  }
+
   // ─── CATÁLOGO ──────────────────────────────────────────────────
 
-  async searchProducts(req: Request, res: Response): Promise<void> {
+  async searchProducts(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { q, categoryId, limit } = req.query;
 
       const products = await retailService.searchProducts({
@@ -28,9 +41,10 @@ class RetailController {
     }
   }
 
-  async getCategories(req: Request, res: Response): Promise<void> {
+  async getCategories(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const categories = await retailService.getCategories(companyId);
       res.json({ success: true, data: categories });
     } catch (error) {
@@ -39,9 +53,10 @@ class RetailController {
     }
   }
 
-  async getFeaturedProducts(req: Request, res: Response): Promise<void> {
+  async getFeaturedProducts(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const products = await retailService.getFeaturedProducts(companyId);
       res.json({ success: true, data: products });
     } catch (error) {
@@ -50,9 +65,10 @@ class RetailController {
     }
   }
 
-  async getProductById(req: Request, res: Response): Promise<void> {
+  async getProductById(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { id } = req.params;
 
       const product = await retailService.getProductById(companyId, Number(id));
@@ -71,9 +87,10 @@ class RetailController {
 
   // ─── CARRINHO ──────────────────────────────────────────────────
 
-  async getCart(req: Request, res: Response): Promise<void> {
+  async getCart(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone, ticketId } = req.query;
 
       const cart = await retailService.getOrCreateCart(
@@ -89,9 +106,10 @@ class RetailController {
     }
   }
 
-  async addToCart(req: Request, res: Response): Promise<void> {
+  async addToCart(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { ticketId, phone, productId, quantity, notes } = req.body;
 
       const cart = await retailService.addToCart({
@@ -111,9 +129,10 @@ class RetailController {
     }
   }
 
-  async removeFromCart(req: Request, res: Response): Promise<void> {
+  async removeFromCart(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { cartId, productId } = req.params;
 
       const cart = await retailService.removeFromCart(companyId, Number(cartId), Number(productId));
@@ -125,9 +144,10 @@ class RetailController {
     }
   }
 
-  async updateCartQuantity(req: Request, res: Response): Promise<void> {
+  async updateCartQuantity(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { cartId, productId } = req.params;
       const { quantity } = req.body;
 
@@ -146,9 +166,10 @@ class RetailController {
     }
   }
 
-  async clearCart(req: Request, res: Response): Promise<void> {
+  async clearCart(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { cartId } = req.params;
 
       const cart = await retailService.clearCart(companyId, Number(cartId));
@@ -162,9 +183,10 @@ class RetailController {
 
   // ─── PEDIDOS ──────────────────────────────────────────────────
 
-  async finalizeCart(req: Request, res: Response): Promise<void> {
+  async finalizeCart(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { cartId, deliveryAddress, deliveryNotes, paymentMethod, couponCode } = req.body;
 
       const order = await retailService.finalizeCart({
@@ -184,9 +206,10 @@ class RetailController {
     }
   }
 
-  async getOrder(req: Request, res: Response): Promise<void> {
+  async getOrder(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { id } = req.params;
 
       const { Order } = await import('../models/retail.models');
@@ -206,13 +229,13 @@ class RetailController {
     }
   }
 
-  async listOrders(req: Request, res: Response): Promise<void> {
+  async listOrders(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { status, limit = 20, offset = 0 } = req.query;
 
       const { Order } = await import('../models/retail.models');
-      const { Op } = await import('sequelize');
 
       const where: Record<string, unknown> = { company_id: companyId };
       if (status) {
@@ -233,9 +256,10 @@ class RetailController {
     }
   }
 
-  async updateOrderStatus(req: Request, res: Response): Promise<void> {
+  async updateOrderStatus(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { id } = req.params;
       const { status, cancelReason } = req.body;
 
@@ -268,9 +292,10 @@ class RetailController {
 
   // ─── CLIENTES ──────────────────────────────────────────────────
 
-  async getCustomer(req: Request, res: Response): Promise<void> {
+  async getCustomer(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone } = req.params;
 
       const customer = await retailService.getOrCreateCustomer(companyId, String(phone));
@@ -281,9 +306,10 @@ class RetailController {
     }
   }
 
-  async getCustomerAddresses(req: Request, res: Response): Promise<void> {
+  async getCustomerAddresses(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone } = req.params;
 
       const addresses = await retailService.getCustomerAddresses(companyId, String(phone));
@@ -294,9 +320,10 @@ class RetailController {
     }
   }
 
-  async addCustomerAddress(req: Request, res: Response): Promise<void> {
+  async addCustomerAddress(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone } = req.params;
       const { label, address, city, isDefault } = req.body;
 
@@ -316,9 +343,10 @@ class RetailController {
 
   // ─── FIDELIDADE ──────────────────────────────────────────────────
 
-  async getLoyaltyInfo(req: Request, res: Response): Promise<void> {
+  async getLoyaltyInfo(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone } = req.params;
 
       const info = await retailService.getCustomerLoyaltyInfo(companyId, String(phone));
@@ -329,9 +357,10 @@ class RetailController {
     }
   }
 
-  async redeemPoints(req: Request, res: Response): Promise<void> {
+  async redeemPoints(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { phone } = req.params;
       const { points } = req.body;
 
@@ -346,9 +375,10 @@ class RetailController {
 
   // ─── PROMOÇÕES ──────────────────────────────────────────────────
 
-  async getPromotions(req: Request, res: Response): Promise<void> {
+  async getPromotions(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const promotions = await retailService.getActivePromotions(companyId);
       res.json({ success: true, data: promotions });
     } catch (error) {
@@ -359,9 +389,10 @@ class RetailController {
 
   // ─── ESTATÍSTICAS ──────────────────────────────────────────────────
 
-  async getStats(req: Request, res: Response): Promise<void> {
+  async getStats(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { companyId } = req.user as { companyId: number };
+      const companyId = this.getCompanyId(req, res);
+      if (companyId === null) return;
       const { period } = req.query;
 
       const stats = await retailService.getOrderStats(companyId, (period as 'today' | 'week' | 'month') || 'today');

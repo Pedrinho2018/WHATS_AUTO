@@ -22,22 +22,18 @@ class BotConfigService {
     this.validateBotConfigData(data);
 
     let config: BotConfig | null = null;
+    const where: any = {
+      company_id: data.company_id,
+      instance_id: null,
+    };
 
     if (data.instance_id) {
-      config = await BotConfig.findOne({
-        where: {
-          company_id: data.company_id,
-          instance_id: data.instance_id,
-        },
-      });
+      where.instance_id = data.instance_id;
     } else {
-      config = await BotConfig.findOne({
-        where: {
-          company_id: data.company_id,
-          instance_id: Op.is(null),
-        },
-      });
+      where.instance_id = null;
     }
+
+    config = await BotConfig.findOne({ where });
 
     if (config) {
       await config.update(data);
@@ -58,7 +54,7 @@ class BotConfigService {
     if (instanceId) {
       where.instance_id = instanceId;
     } else {
-      where.instance_id = Op.is(null);
+      where.instance_id = null;
     }
 
     return BotConfig.findOne({ where });

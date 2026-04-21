@@ -144,12 +144,13 @@ export default class ChatbotOrchestratorService {
       typebotDispatched = typebotResult.delivered;
       typebotFallbackReason = typebotResult.reason || null;
 
-      if (typebotResult.sessionId) {
+      const sessionId = typebotResult.sessionId;
+      if (typeof sessionId === 'string' && sessionId.trim().length > 0) {
         await this.unitOfWork.runInTransaction(async ({ tx }) => {
           await this.ticketRepository.updateTypebotSession(
             persistenceResult.ticket,
             typebotFlow.id,
-            typebotResult.sessionId,
+            sessionId,
             tx
           );
         });

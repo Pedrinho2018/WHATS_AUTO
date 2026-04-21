@@ -208,7 +208,8 @@ class MigrationRunner {
     );
 
     if (Array.isArray(results[0]) && results[0].length > 0) {
-      return results[0][0].name;
+      const [firstRow] = results[0] as Array<{ name: string }>;
+      return firstRow?.name ?? null;
     }
 
     return null;

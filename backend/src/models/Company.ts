@@ -66,13 +66,13 @@ Company.init(
     phone: {
       type: DataTypes.STRING(20),
       allowNull: true,
+    },
     cnpj: {
       type: DataTypes.STRING(18),
       allowNull: true,
       validate: {
         is: /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/,
       },
-    },
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive', 'suspended', 'trial'),

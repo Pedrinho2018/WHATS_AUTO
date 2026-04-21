@@ -217,7 +217,7 @@ class AdminController {
       }
 
       const users = await User.findAll({
-        where: { company_id: parseInt(companyId) },
+        where: { company_id: parseInt(String(companyId), 10) },
         attributes: { exclude: ['password'] },
         order: [['created_at', 'DESC']],
       });
@@ -247,7 +247,7 @@ class AdminController {
         return;
       }
 
-      const user = await User.findByPk(userId);
+      const user = await User.findByPk(String(userId));
       if (!user) {
         res.status(404).json({ error: 'Usuário não encontrado' });
         return;
