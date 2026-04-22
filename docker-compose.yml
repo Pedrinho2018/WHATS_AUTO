@@ -207,6 +207,32 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── n8n (Automacao) ────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: whatsauto_n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=n8n.${ROOT_DOMAIN:-nortemtsistemas.com.br}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.${ROOT_DOMAIN:-nortemtsistemas.com.br}
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - traefik-public
+      - bot_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls=true"
+      - "traefik.http.routers.n8n.tls.certresolver=myresolver"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
   # ─── Typebot Builder (Construtor Visual) ────────────────────────
   typebot-builder:
     image: baptiste-arnaud/typebot-builder:latest
@@ -261,6 +287,7 @@ volumes:
   postgres_data:
   mariadb_data:
   redis_data:
+  n8n_data:
 
 networks:
   traefik-public:
