@@ -32,6 +32,7 @@ const navItems = computed(() => {
     { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
     { label: 'Conversas', to: '/tickets', icon: 'mdi-chat-processing-outline' },
     { label: 'Instancias', to: '/instances', icon: 'mdi-cellphone-link' },
+    { label: 'Construtor de Fluxos', to: '/builder', icon: 'mdi-sitemap' },
     { label: 'Configuracoes', to: '/settings', icon: 'mdi-cog-outline' },
   ]
 
@@ -54,6 +55,7 @@ const pageMeta = computed(() => {
     '/tickets': { title: 'Conversas', subtitle: 'Fila de atendimento e historico' },
     '/operator/queue': { title: 'Fila de Conversas', subtitle: 'Atendimento operacional' },
     '/instances': { title: 'Instancias', subtitle: 'Conectividade e status' },
+    '/builder': { title: 'Construtor de Fluxos', subtitle: 'Gerencie sua arvore de conversacao visualmente' },
     '/settings': { title: 'Configuracoes', subtitle: 'Preferencias da operacao' },
     '/admin/users': { title: 'Admin • Usuarios', subtitle: 'Controle de acesso da equipe' },
   }

@@ -81,6 +81,7 @@ export interface UpdateTicketInput {
   status?: TicketStatus;
   priority?: TicketPriority;
   tags?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateFlowInput {
@@ -437,13 +438,14 @@ class ManagementService {
       throw new DomainError('Conversa nao encontrada', 404);
     }
 
-    const { user_id, status, priority, tags } = input;
+    const { user_id, status, priority, tags, metadata } = input;
 
     await ticket.update({
       user_id: user_id ?? ticket.user_id,
       status: status ?? ticket.status,
       priority: priority ?? ticket.priority,
       tags: tags ?? ticket.tags,
+      metadata: metadata ? { ...(ticket.metadata || {}), ...metadata } : ticket.metadata,
     });
 
     logger.info('Conversa atualizada', {
@@ -657,6 +659,41 @@ class ManagementService {
     });
 
     return ticket;
+  }
+
+  // ─── Métodos de Configuração do Usuário ────────────────────────
+  async updateUserSettings(companyId: number, userId: number, settings: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const user = await User.findOne({ where: { id: userId, company_id: companyId } });
+    if (!user) {
+      throw new DomainError('Usuário não encontrado', 404);
+    }
+
+    await user.update({
+      settings: { ...(user.settings || {}), ...settings },
+    });
+
+    logger.info('Configurações de usuário atualizadas', {
+      companyId,
+      userId,
+      settingsKeys: Object.keys(settings),
+    });
+
+    return this.sanitizeUser(user);
+  }
+
+  // ─── Métodos de Histórico de Tickets ──────────────────────────
+  async listTicketHistory(companyId: number, contactPhone: string): Promise<Ticket[]> {
+    return Ticket.findAll({
+      where: { 
+        company_id: companyId,
+        contact_phone: contactPhone,
+        status: 'closed'
+      },
+      include: [
+        { model: User, as: 'agent', attributes: ['id', 'name', 'email'] },
+      ],
+      order: [['created_at', 'DESC']],
+    });
   }
 }
 

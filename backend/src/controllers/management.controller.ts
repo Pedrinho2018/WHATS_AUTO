@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import DomainError from '../core/errors/domain.error';
 import sendControllerError from '../core/http/controller-error';
 import { AuthRequest } from '../middlewares';
@@ -80,6 +80,21 @@ class ManagementController {
     }
   }
 
+  async updateUserSettings(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new DomainError('Usuário não autenticado', 401);
+      }
+      const user = await managementService.updateUserSettings(companyId, userId, req.body as Record<string, unknown>);
+      res.json(user);
+    } catch (error) {
+      logger.error('Falha ao atualizar configurações do usuário', error);
+      sendControllerError(res, error, 'Erro ao atualizar configurações');
+    }
+  }
+
   async listInstances(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
@@ -139,6 +154,22 @@ class ManagementController {
       res.json(tickets);
     } catch (error) {
       sendControllerError(res, error, 'Erro ao listar conversas');
+    }
+  }
+
+  async listTicketHistory(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const contactPhone = req.params.contactPhone;
+
+      if (!contactPhone) {
+        throw new DomainError('Telefone do contato é obrigatório', 400);
+      }
+
+      const tickets = await managementService.listTicketHistory(companyId, contactPhone);
+      res.json(tickets);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao buscar histórico de conversas');
     }
   }
 

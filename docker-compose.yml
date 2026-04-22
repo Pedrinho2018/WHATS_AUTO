@@ -82,6 +82,7 @@ services:
     init: true
     environment:
       - VITE_API_URL=${API_URL:-https://api.nortemtsistemas.com.br}
+      - VITE_TYPEBOT_BUILDER_URL=${TYPEBOT_BUILDER_URL:-https://typebot-builder.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
     networks:
       - traefik-public
       - bot_network
@@ -205,6 +206,55 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ─── Typebot Builder (Construtor Visual) ────────────────────────
+  typebot-builder:
+    image: baptiste-arnaud/typebot-builder:latest
+    container_name: typebot_builder
+    restart: unless-stopped
+    environment:
+      - ENCRYPTION_SECRET=${TYPEBOT_ENCRYPTION_SECRET}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_bot:5432/${POSTGRES_DB}?schema=typebot
+      - NEXT_PUBLIC_VIEWER_URL=${TYPEBOT_VIEWER_URL:-https://typebot-viewer.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
+      - NEXTAUTH_URL=${TYPEBOT_BUILDER_URL:-https://typebot-builder.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+    networks:
+      - traefik-public
+      - bot_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.typebot-builder.rule=Host(`typebot-builder.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)"
+      - "traefik.http.routers.typebot-builder.entrypoints=websecure"
+      - "traefik.http.routers.typebot-builder.tls=true"
+      - "traefik.http.routers.typebot-builder.tls.certresolver=myresolver"
+      - "traefik.http.services.typebot-builder.loadbalancer.server.port=3000"
+
+  # ─── Typebot Viewer (Motor de Chat) ─────────────────────────────
+  typebot-viewer:
+    image: baptiste-arnaud/typebot-viewer:latest
+    container_name: typebot_viewer
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_bot:5432/${POSTGRES_DB}?schema=typebot
+      - NEXT_PUBLIC_VIEWER_URL=${TYPEBOT_VIEWER_URL:-https://typebot-viewer.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
+    networks:
+      - traefik-public
+      - bot_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.typebot-viewer.rule=Host(`typebot-viewer.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)"
+      - "traefik.http.routers.typebot-viewer.entrypoints=websecure"
+      - "traefik.http.routers.typebot-viewer.tls=true"
+      - "traefik.http.routers.typebot-viewer.tls.certresolver=myresolver"
+      - "traefik.http.services.typebot-viewer.loadbalancer.server.port=3000"
 
 volumes:
   evolution_data:

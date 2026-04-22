@@ -47,6 +47,12 @@ const routes = [
     meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
+    path: '/builder',
+    name: 'TypebotBuilder',
+    component: () => import('../views/TypebotBuilder.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('../views/AdminUsers.vue'),

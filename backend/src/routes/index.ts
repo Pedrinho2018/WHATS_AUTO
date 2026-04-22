@@ -113,6 +113,7 @@ routes.get('/dashboard/summary', managementController.dashboard.bind(managementC
 
 // Conversas (area do usuario/agente)
 routes.get('/tickets', managementController.listTickets.bind(managementController));
+routes.get('/tickets/history/:contactPhone', managementController.listTicketHistory.bind(managementController));
 routes.post('/tickets', managementController.createTicket.bind(managementController));
 routes.patch('/tickets/:id', managementController.updateTicket.bind(managementController));
 routes.post('/tickets/:id/transfer', roleMiddleware('admin', 'manager', 'agent'), managementController.transferTicket.bind(managementController));
@@ -133,6 +134,7 @@ routes.patch('/flows/:id', roleMiddleware('admin', 'manager'), managementControl
 // Admin: usuarios/agentes
 routes.get('/users', roleMiddleware('admin', 'manager'), managementController.listUsers.bind(managementController));
 routes.post('/users', roleMiddleware('admin'), managementController.createUser.bind(managementController));
+routes.patch('/users/me/settings', managementController.updateUserSettings.bind(managementController));
 routes.patch('/users/:id', roleMiddleware('admin'), managementController.updateUser.bind(managementController));
 
 // Admin: numeros/instancias
