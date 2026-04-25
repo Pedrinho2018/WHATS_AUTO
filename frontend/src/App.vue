@@ -14,7 +14,6 @@ const display = useDisplay()
 const drawer = ref(false)
 const isDarkMode = ref(false)
 const searchQuery = ref('')
-const helpDialog = ref(false)
 
 const isAuthRoute = computed(() => route.path === '/login')
 const isMobile = computed(() => display.mdAndDown.value)
@@ -31,12 +30,12 @@ const navItems = computed(() => {
     { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
     { label: 'Conversas', to: '/tickets', icon: 'mdi-chat-processing-outline' },
     { label: 'Instancias', to: '/instances', icon: 'mdi-cellphone-link' },
-    { label: 'Construtor de Fluxos', to: '/builder', icon: 'mdi-sitemap' },
+    { label: 'Fluxos', to: '/builder', icon: 'mdi-sitemap' },
     { label: 'Configuracoes', to: '/settings', icon: 'mdi-cog-outline' },
   ]
 
   if (role === 'admin' || role === 'manager') {
-    items.push({ label: 'Admin • Usuarios', to: '/admin/users', icon: 'mdi-account-group-outline' })
+    items.push({ label: 'Usuarios', to: '/admin/users', icon: 'mdi-account-group-outline' })
   }
 
   return items
@@ -54,9 +53,9 @@ const pageMeta = computed(() => {
     '/tickets': { title: 'Conversas', subtitle: 'Fila de atendimento e historico' },
     '/operator/queue': { title: 'Fila de Conversas', subtitle: 'Atendimento operacional' },
     '/instances': { title: 'Instancias', subtitle: 'Conectividade e status' },
-    '/builder': { title: 'Construtor de Fluxos', subtitle: 'Gerencie sua arvore de conversacao visualmente' },
+    '/builder': { title: 'Fluxos', subtitle: 'Construtor de automacoes' },
     '/settings': { title: 'Configuracoes', subtitle: 'Preferencias da operacao' },
-    '/admin/users': { title: 'Admin • Usuarios', subtitle: 'Controle de acesso da equipe' },
+    '/admin/users': { title: 'Usuarios', subtitle: 'Controle de acesso da equipe' },
   }
 
   return map[route.path] || { title: 'Painel Norte MT', subtitle: 'Operacao em tempo real' }
@@ -100,7 +99,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <v-app>
+  <v-app :class="['app-shell', { 'is-auth': isAuthRoute }]">
     <v-main>
       <router-view v-if="isAuthRoute" />
 
@@ -108,56 +107,53 @@ const handleLogout = () => {
         <v-navigation-drawer
           v-model="drawer"
           :temporary="isMobile"
+          class="app-drawer"
           color="surface"
-          elevation="2"
-          rounded="xl"
+          width="284"
         >
-          <v-list-item class="py-3" prepend-avatar="/favicon.svg" title="Norte MT" subtitle="Control Center" />
+          <div class="brand-block">
+            <v-avatar color="primary" size="38">
+              <span class="text-subtitle-2 font-weight-bold">NM</span>
+            </v-avatar>
+            <div>
+              <div class="text-subtitle-2 font-weight-bold">Norte MT</div>
+              <div class="text-caption text-medium-emphasis">Whats Auto</div>
+            </div>
+          </div>
 
-          <v-divider class="my-2" />
+          <v-text-field
+            v-model="searchQuery"
+            class="mx-4 mb-2"
+            density="compact"
+            hide-details
+            prepend-inner-icon="mdi-magnify"
+            variant="outlined"
+            placeholder="Buscar"
+          />
 
-          <v-list density="comfortable" nav>
+          <v-list class="px-3" density="compact" nav>
             <v-list-item
               v-for="item in filteredNavItems"
               :key="item.to"
               :to="item.to"
               :prepend-icon="item.icon"
               :title="item.label"
-              rounded="xl"
+              class="app-nav-item"
+              rounded="lg"
               color="primary"
             />
           </v-list>
-
-          <template #append>
-            <div class="pa-3">
-              <v-btn block color="secondary" prepend-icon="mdi-lifebuoy" variant="tonal" @click="helpDialog = true">
-                Central de Ajuda
-              </v-btn>
-            </div>
-          </template>
         </v-navigation-drawer>
 
-        <v-app-bar color="surface" elevation="1" rounded="xl">
+        <v-app-bar class="app-topbar" color="surface" elevation="0">
           <v-app-bar-nav-icon @click="drawer = !drawer" />
 
           <v-toolbar-title>
-            <div class="text-subtitle-1 font-weight-bold">{{ pageMeta.title }}</div>
+            <div class="text-subtitle-1 font-weight-bold text-truncate">{{ pageMeta.title }}</div>
             <div class="text-caption text-medium-emphasis">{{ pageMeta.subtitle }}</div>
           </v-toolbar-title>
 
           <v-spacer />
-
-          <v-text-field
-            v-model="searchQuery"
-            class="mr-3"
-            density="compact"
-            hide-details
-            prepend-inner-icon="mdi-magnify"
-            rounded="pill"
-            style="max-width: 320px;"
-            variant="outlined"
-            placeholder="Buscar menu"
-          />
 
           <v-btn
             class="mr-2"
@@ -166,44 +162,81 @@ const handleLogout = () => {
             @click="isDarkMode = !isDarkMode"
           />
 
-          <v-chip class="mr-2" color="primary" prepend-icon="mdi-account-circle" variant="tonal">
-            {{ userName }}
-          </v-chip>
+          <v-menu location="bottom end">
+            <template #activator="{ props }">
+              <v-btn v-bind="props" class="user-menu" variant="text">
+                <v-avatar color="primary" size="30">
+                  <span class="text-caption font-weight-bold">{{ userName.slice(0, 1).toUpperCase() }}</span>
+                </v-avatar>
+                <span class="ml-2 d-none d-sm-inline">{{ userName }}</span>
+                <v-icon class="ml-1" icon="mdi-chevron-down" size="18" />
+              </v-btn>
+            </template>
 
-          <v-btn prepend-icon="mdi-logout" variant="text" @click="handleLogout">
-            Sair
-          </v-btn>
+            <v-list density="compact" min-width="220">
+              <v-list-item :title="userName" :subtitle="authStore.user?.role || 'usuario'" prepend-icon="mdi-account-circle-outline" />
+              <v-divider />
+              <v-list-item title="Sair" prepend-icon="mdi-logout" @click="handleLogout" />
+            </v-list>
+          </v-menu>
         </v-app-bar>
 
-        <v-container class="py-6" fluid>
-          <v-sheet border class="pa-4 pa-md-6" color="surface" rounded="xl">
-            <Transition mode="out-in" name="page">
-              <router-view :key="route.fullPath" />
-            </Transition>
-          </v-sheet>
+        <v-container class="app-container" fluid>
+          <Transition mode="out-in" name="page">
+            <router-view :key="route.fullPath" />
+          </Transition>
         </v-container>
 
-        <v-footer app class="px-6" color="transparent">
+        <v-footer app class="app-footer" color="transparent">
           <div class="text-caption text-medium-emphasis">© 2026 Norte MT Sistemas • v2026.04</div>
         </v-footer>
-
-        <v-dialog v-model="helpDialog" max-width="620">
-          <v-card rounded="xl">
-            <v-card-title class="text-h6">Guia rapido da interface</v-card-title>
-            <v-card-text>
-              <v-list lines="two">
-                <v-list-item title="Navegacao" subtitle="Use o menu lateral para alternar entre as telas essenciais do sistema." />
-                <v-list-item title="Fluxo recomendado" subtitle="1) Conectar instancias 2) Atender conversas 3) Monitorar indicadores no dashboard." />
-                <v-list-item title="Perfis" subtitle="Admin e manager acessam gestao completa; agent e viewer atuam na fila operacional." />
-              </v-list>
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer />
-              <v-btn color="primary" variant="flat" @click="helpDialog = false">Entendi</v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
       </template>
     </v-main>
   </v-app>
 </template>
+
+<style scoped>
+.app-shell {
+  background: rgb(var(--v-theme-background));
+}
+
+.app-drawer {
+  border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 16px;
+}
+
+.app-nav-item {
+  margin-bottom: 4px;
+}
+
+.app-topbar {
+  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.app-container {
+  max-width: 1440px;
+  padding: 24px;
+}
+
+.app-footer {
+  border-top: 1px solid rgba(var(--v-border-color), 0.08);
+  padding-inline: 24px;
+}
+
+.user-menu {
+  text-transform: none;
+}
+
+@media (max-width: 960px) {
+  .app-container {
+    padding: 16px;
+  }
+}
+</style>
