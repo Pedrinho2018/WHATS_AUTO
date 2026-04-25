@@ -125,6 +125,8 @@ services:
       - LOG_COLOR=true
       - DEL_INSTANCE=false
       - QRCODE_LIMIT=30
+      - WEBHOOK_URL=${EVOLUTION_WEBHOOK_URL:-https://api.nortemtsistemas.com.br/webhooks/evolution}
+      - WEBHOOK_API_TOKEN=${EVOLUTION_API_KEY}
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
       - WEBHOOK_EVENTS_CONNECTION_UPDATE=true
       - WEBHOOK_EVENTS_QRCODE_UPDATED=true
@@ -213,7 +215,7 @@ services:
   # ─── Typebot Builder (Construtor Visual) ────────────────────────
   typebot-builder:
     profiles: ["typebot"]
-    image: baptiste-arnaud/typebot-builder:latest
+    image: baptistearno/typebot-builder:latest
     container_name: typebot_builder
     restart: unless-stopped
     environment:
@@ -240,7 +242,7 @@ services:
   # ─── Typebot Viewer (Motor de Chat) ─────────────────────────────
   typebot-viewer:
     profiles: ["typebot"]
-    image: baptiste-arnaud/typebot-viewer:latest
+    image: baptistearno/typebot-viewer:latest
     container_name: typebot_viewer
     restart: unless-stopped
     environment:

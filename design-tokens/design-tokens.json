@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "name": "WhatsApp Chatbot - Design System",
+    "version": "1.0.0",
+    "description": "Design System para WhatsAuto - Plataforma Multi-tenant de Atendimento WhatsApp",
+    "lastUpdated": "2026-04-25",
+    "brand": {
+      "name": "Norte MT Sistemas",
+      "product": "WhatsAuto",
+      "website": "https://nortemtsistemas.com.br"
+    }
+  },
+  "colors": {
+    "primary": {
+      "50": "#f0fdf4",
+      "100": "#dcfce7",
+      "200": "#bbf7d0",
+      "300": "#86efac",
+      "400": "#4ade80",
+      "500": "#22c55e",
+      "600": "#16a34a",
+      "700": "#15803d",
+      "800": "#166534",
+      "900": "#145231",
+      "950": "#0f2818",
+      "main": "#10b981",
+      "dark": "#059669",
+      "light": "#d1fae5"
+    },
+    "secondary": {
+      "50": "#f8fafc",
+      "100": "#f1f5f9",
+      "200": "#e2e8f0",
+      "300": "#cbd5e1",
+      "400": "#94a3b8",
+      "500": "#64748b",
+      "600": "#475569",
+      "700": "#334155",
+      "800": "#1e293b",
+      "900": "#0f172a",
+      "main": "#0b1220",
+      "light": "#f1f5f9",
+      "dark": "#020617"
+    },
+    "accent": {
+      "main": "#fb923c",
+      "light": "#fedd5e",
+      "dark": "#f97316"
+    },
+    "whatsapp": {
+      "main": "#25d366",
+      "light": "#34d399",
+      "dark": "#16a34a"
+    },
+    "status": {
+      "success": "#10b981",
+      "error": "#ef4444",
+      "warning": "#f59e0b",
+      "info": "#3b82f6"
+    },
+    "neutral": {
+      "white": "#ffffff",
+      "black": "#000000",
+      "gray-50": "#f9fafb",
+      "gray-100": "#f3f4f6",
+      "gray-200": "#e5e7eb",
+      "gray-300": "#d1d5db",
+      "gray-400": "#9ca3af",
+      "gray-500": "#6b7280"
+    },
+    "backgrounds": {
+      "light": "#edf3ef",
+      "dark": "#08110f",
+      "surface-light": "#ffffff",
+      "surface-dark": "#101d1a"
+    },
+    "borders": {
+      "light": "#d2ddd6",
+      "dark": "#22342f"
+    },
+    "text": {
+      "primary-light": "#0e1726",
+      "primary-dark": "#d9eee5",
+      "secondary-light": "#5b6e63",
+      "secondary-dark": "#88a79a"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "primary": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "mono": "'Courier New', monospace"
+    },
+    "scale": {
+      "xs": {
+        "fontSize": 12,
+        "lineHeight": 16,
+        "letterSpacing": 0.5,
+        "fontWeight": 400,
+        "name": "Extra Small"
+      },
+      "sm": {
+        "fontSize": 14,
+        "lineHeight": 20,
+        "letterSpacing": 0,
+        "fontWeight": 400,
+        "name": "Small"
+      },
+      "base": {
+        "fontSize": 16,
+        "lineHeight": 24,
+        "letterSpacing": 0,
+        "fontWeight": 400,
+        "name": "Base"
+      },
+      "lg": {
+        "fontSize": 18,
+        "lineHeight": 28,
+        "letterSpacing": 0,
+        "fontWeight": 500,
+        "name": "Large"
+      },
+      "xl": {
+        "fontSize": 20,
+        "lineHeight": 28,
+        "letterSpacing": 0,
+        "fontWeight": 600,
+        "name": "Extra Large"
+      },
+      "2xl": {
+        "fontSize": 24,
+        "lineHeight": 32,
+        "letterSpacing": 0,
+        "fontWeight": 700,
+        "name": "2XL"
+      },
+      "3xl": {
+        "fontSize": 30,
+        "lineHeight": 36,
+        "letterSpacing": 0,
+        "fontWeight": 700,
+        "name": "3XL"
+      },
+      "4xl": {
+        "fontSize": 36,
+        "lineHeight": 40,
+        "letterSpacing": -0.02,
+        "fontWeight": 700,
+        "name": "4XL"
+      },
+      "5xl": {
+        "fontSize": 48,
+        "lineHeight": 48,
+        "letterSpacing": -0.02,
+        "fontWeight": 700,
+        "name": "5XL"
+      }
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48,
+    "4xl": 64",
+    "unit": 4
+  },
+  "borderRadius": {
+    "none": 0,
+    "sm": 4,
+    "md": 8,
+    "lg": 12,
+    "xl": 16,
+    "2xl": 20,
+    "full": 9999
+  },
+  "shadows": {
+    "none": "none",
+    "xs": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+    "xl": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    "2xl": "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+  },
+  "breakpoints": {
+    "xs": 0,
+    "sm": 640,
+    "md": 768,
+    "lg": 1024,
+    "xl": 1280,
+    "2xl": 1536
+  },
+  "components": {
+    "button": {
+      "sizes": {
+        "sm": {
+          "padding": "6px 12px",
+          "fontSize": 14,
+          "height": 32
+        },
+        "md": {
+          "padding": "8px 16px",
+          "fontSize": 14,
+          "height": 40
+        },
+        "lg": {
+          "padding": "10px 20px",
+          "fontSize": 16,
+          "height": 48
+        }
+      },
+      "states": ["default", "hover", "active", "disabled", "loading"],
+      "variants": ["primary", "secondary", "outline", "ghost", "danger"]
+    },
+    "input": {
+      "sizes": {
+        "sm": {
+          "height": 32,
+          "padding": "6px 8px",
+          "fontSize": 14
+        },
+        "md": {
+          "height": 40,
+          "padding": "8px 12px",
+          "fontSize": 14
+        },
+        "lg": {
+          "height": 48,
+          "padding": "10px 16px",
+          "fontSize": 16
+        }
+      },
+      "variants": ["default", "filled", "outline"],
+      "states": ["default", "hover", "focus", "disabled", "error", "success"]
+    },
+    "card": {
+      "defaults": {
+        "borderRadius": 12,
+        "shadow": "md",
+        "padding": 24,
+        "background": "surface"
+      }
+    },
+    "modal": {
+      "backdropOpacity": 0.5,
+      "borderRadius": 16,
+      "shadow": "2xl"
+    }
+  },
+  "animations": {
+    "timing": {
+      "fast": "150ms",
+      "normal": "250ms",
+      "slow": "350ms"
+    },
+    "easing": {
+      "ease-in": "cubic-bezier(0.4, 0, 1, 1)",
+      "ease-out": "cubic-bezier(0, 0, 0.2, 1)",
+      "ease-in-out": "cubic-bezier(0.4, 0, 0.2, 1)"
+    }
+  }
+}
