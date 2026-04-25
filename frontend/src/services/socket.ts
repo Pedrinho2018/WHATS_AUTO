@@ -1,5 +1,6 @@
 import { readonly, ref } from 'vue'
 import { io, type Socket } from 'socket.io-client'
+import { appConfig } from '../config/runtime'
 
 type ServerToClientEvents = {
   'server:welcome': (payload: { message: string; timestamp: string }) => void
@@ -14,16 +15,16 @@ type ClientToServerEvents = {
   'client:join-ticket': (payload: { ticketId: number }) => void
 }
 
-const isSocketDebugEnabled = import.meta.env.VITE_DEBUG_SOCKET === 'true'
+const isSocketDebugEnabled = appConfig.debugSocket
 const normalizeSocketUrl = (value?: string): string => {
   return (value || '').trim().replace(/\/api\/?$/, '').replace(/\/+$/, '')
 }
 
 const socketUrl =
-  normalizeSocketUrl(import.meta.env.VITE_SOCKET_URL) ||
-  normalizeSocketUrl(import.meta.env.VITE_API_URL) ||
+  normalizeSocketUrl(appConfig.socketUrl) ||
+  normalizeSocketUrl(appConfig.apiUrl) ||
   window.location.origin
-const socketPath = import.meta.env.VITE_SOCKET_PATH || '/socket.io'
+const socketPath = appConfig.socketPath
 
 const isConnected = ref(false)
 const lastError = ref<string | null>(null)

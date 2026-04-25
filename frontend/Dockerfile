@@ -29,9 +29,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copia configuração do nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 
 # Permissões
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh && \
+    chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 80

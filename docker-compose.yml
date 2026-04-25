@@ -82,6 +82,8 @@ services:
     init: true
     environment:
       - VITE_API_URL=${API_URL:-https://api.nortemtsistemas.com.br}
+      - VITE_SOCKET_URL=${SOCKET_URL:-https://api.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
+      - VITE_SOCKET_PATH=${SOCKET_PATH:-/socket.io}
       - VITE_TYPEBOT_BUILDER_URL=${TYPEBOT_BUILDER_URL:-https://typebot-builder.${ROOT_DOMAIN:-nortemtsistemas.com.br}}
     networks:
       - traefik-public

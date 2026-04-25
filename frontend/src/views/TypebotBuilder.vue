@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { appConfig } from '../config/runtime'
 
-const typebotUrl = import.meta.env.VITE_TYPEBOT_BUILDER_URL || 'https://app.typebot.io/typebots'
+const typebotUrl = appConfig.typebotBuilderUrl
 const isLoading = ref(true)
 
 const onIframeLoad = () => {

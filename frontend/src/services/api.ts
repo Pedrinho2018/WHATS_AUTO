@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import { appConfig } from '../config/runtime'
 
 type DebugAxiosRequestConfig = InternalAxiosRequestConfig & {
   metadata?: {
@@ -7,10 +8,10 @@ type DebugAxiosRequestConfig = InternalAxiosRequestConfig & {
   }
 }
 
-const isApiDebugEnabled = import.meta.env.VITE_DEBUG_API === 'true'
+const isApiDebugEnabled = appConfig.debugApi
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: appConfig.apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },

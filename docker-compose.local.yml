@@ -69,6 +69,10 @@ services:
     container_name: whatsauto_local_frontend
     restart: unless-stopped
     init: true
+    environment:
+      VITE_API_URL: /api
+      VITE_SOCKET_URL: ""
+      VITE_SOCKET_PATH: /socket.io
     ports:
       - "18081:80"
     depends_on:
