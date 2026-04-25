@@ -15,7 +15,14 @@ type ClientToServerEvents = {
 }
 
 const isSocketDebugEnabled = import.meta.env.VITE_DEBUG_SOCKET === 'true'
-const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin
+const normalizeSocketUrl = (value?: string): string => {
+  return (value || '').trim().replace(/\/api\/?$/, '').replace(/\/+$/, '')
+}
+
+const socketUrl =
+  normalizeSocketUrl(import.meta.env.VITE_SOCKET_URL) ||
+  normalizeSocketUrl(import.meta.env.VITE_API_URL) ||
+  window.location.origin
 const socketPath = import.meta.env.VITE_SOCKET_PATH || '/socket.io'
 
 const isConnected = ref(false)
