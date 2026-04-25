@@ -230,76 +230,571 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="instances-page">
     <UiSectionHeader title="Instancias WhatsApp" subtitle="Gerencie conexoes e disponibilidade dos numeros." />
 
-    <UiCard v-if="canManage" elevated>
-      <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Conectar novo numero</h2>
-      <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <input v-model="form.name" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900" placeholder="Nome da instância" />
-        <input v-model="form.evolution_instance" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900" placeholder="ID Evolution (instanceName)" />
-        <input v-model="form.phone" class="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900" placeholder="Telefone (opcional)" />
-        <button class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700" @click="createInstance">
+    <div v-if="canManage" class="create-instance-card glass">
+      <h2 class="card-title gradient-text">Conectar novo numero</h2>
+      <div class="form-grid">
+        <input 
+          v-model="form.name" 
+          class="form-input" 
+          placeholder="Nome da instância" 
+        />
+        <input 
+          v-model="form.evolution_instance" 
+          class="form-input" 
+          placeholder="ID Evolution (instanceName)" 
+        />
+        <input 
+          v-model="form.phone" 
+          class="form-input" 
+          placeholder="Telefone (opcional)" 
+        />
+        <button class="btn-create gradient-btn" @click="createInstance">
+          <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
           Salvar Instância
         </button>
       </div>
-    </UiCard>
+    </div>
 
-    <UiCard v-if="loading" class="text-gray-600 dark:text-gray-300">
-      Carregando instâncias...
+    <UiCard v-if="loading" class="loading-card">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        Carregando instâncias...
+      </div>
     </UiCard>
     
-    <div v-else class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <div v-for="instance in instances" :key="instance.id" class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ instance.name }}</h3>
-          <span class="rounded-full px-3 py-1 text-xs font-semibold"
-            :class="instance.status === 'connected' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'"
+    <div v-else class="instances-grid">
+      <div 
+        v-for="(instance, index) in instances" 
+        :key="instance.id" 
+        class="instance-card glass"
+        :style="{ animationDelay: `${index * 0.1}s` }"
+      >
+        <div class="instance-header">
+          <div class="instance-info">
+            <h3 class="instance-name">{{ instance.name }}</h3>
+            <div class="status-indicator">
+              <span 
+                class="status-dot"
+                :class="{
+                  'status-connected': instance.status === 'connected',
+                  'status-disconnected': instance.status === 'disconnected',
+                  'status-connecting': instance.status === 'connecting',
+                  'status-error': instance.status === 'error'
+                }"
+              ></span>
+              <span class="status-label">{{ statusLabel[instance.status] }}</span>
+            </div>
+          </div>
+          <span 
+            class="status-badge"
+            :class="{
+              'badge-connected': instance.status === 'connected',
+              'badge-disconnected': instance.status === 'disconnected',
+              'badge-connecting': instance.status === 'connecting',
+              'badge-error': instance.status === 'error'
+            }"
           >
             {{ statusLabel[instance.status] }}
           </span>
         </div>
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ instance.evolution_instance }}</p>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ instance.phone || 'Sem telefone configurado' }}</p>
 
-        <button
-          v-if="canManage"
-          class="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-          :disabled="actionLoadingById[instance.id]"
-          @click="connectInstance(instance)"
-        >
-          {{ actionLoadingById[instance.id] ? 'Conectando...' : 'Conectar na Evolution' }}
-        </button>
+        <div class="instance-details">
+          <div class="detail-row">
+            <svg class="icon-sm text-medium-emphasis" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <span class="detail-text">{{ instance.evolution_instance }}</span>
+          </div>
+          <div class="detail-row">
+            <svg class="icon-sm text-medium-emphasis" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            <span class="detail-text">{{ instance.phone || 'Sem telefone configurado' }}</span>
+          </div>
+        </div>
 
-        <button
-          v-if="canManage"
-          class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-          :disabled="actionLoadingById[instance.id]"
-          @click="fetchQrCode(instance)"
-        >
-          Buscar QR Code
-        </button>
+        <div v-if="canManage" class="instance-actions">
+          <button
+            class="btn-connect gradient-btn"
+            :disabled="actionLoadingById[instance.id]"
+            @click="connectInstance(instance)"
+          >
+            <div v-if="actionLoadingById[instance.id]" class="spinner-sm"></div>
+            <svg v-else class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            {{ actionLoadingById[instance.id] ? 'Conectando...' : 'Conectar na Evolution' }}
+          </button>
 
-        <div v-if="qrCodeById[instance.id]" class="mt-4 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">QR Code</p>
+          <button
+            class="btn-qr"
+            :disabled="actionLoadingById[instance.id]"
+            @click="fetchQrCode(instance)"
+          >
+            <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            Buscar QR Code
+          </button>
+        </div>
+
+        <div v-if="qrCodeById[instance.id]" class="qr-code-panel">
+          <div class="panel-header">
+            <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            <span class="panel-title">QR Code</span>
+          </div>
           <img
             v-if="qrCodeById[instance.id].startsWith('data:image')"
             :src="qrCodeById[instance.id]"
             alt="QR Code da instância"
-            class="mx-auto max-h-56 rounded"
+            class="qr-code-image"
           />
-          <p v-else class="break-all text-xs text-slate-600 dark:text-slate-300">{{ qrCodeById[instance.id] }}</p>
+          <p v-else class="qr-code-text">{{ qrCodeById[instance.id] }}</p>
         </div>
 
-        <div v-if="pairingCodeById[instance.id]" class="mt-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">PIN de pareamento</p>
-          <p class="font-mono text-sm font-semibold tracking-widest text-slate-800 dark:text-slate-100">{{ pairingCodeById[instance.id] }}</p>
+        <div v-if="pairingCodeById[instance.id]" class="pairing-code-panel">
+          <div class="panel-header">
+            <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <span class="panel-title">PIN de pareamento</span>
+          </div>
+          <p class="pairing-code">{{ pairingCodeById[instance.id] }}</p>
         </div>
 
-        <p v-if="qrMessageById[instance.id]" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300">
+        <div v-if="qrMessageById[instance.id]" class="warning-message">
+          <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
           {{ qrMessageById[instance.id] }}
-        </p>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.instances-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fade-in 0.6s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+}
+
+.glass:hover {
+  border-color: rgba(var(--v-border-color), 0.3);
+  box-shadow: var(--shadow-lg);
+}
+
+.create-instance-card {
+  padding: 1.5rem;
+}
+
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.gradient-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .form-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.form-input {
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.form-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.5);
+}
+
+.form-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.gradient-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--gradient-brand);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.gradient-btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.gradient-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-card {
+  padding: 2rem;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid rgba(var(--v-theme-primary), 0.2);
+  border-top-color: rgb(var(--v-theme-primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.instances-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .instances-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .instances-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.instance-card {
+  padding: 1.25rem;
+  animation: slide-up 0.6s ease-out backwards;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.instance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.instance-info {
+  flex: 1;
+}
+
+.instance-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0 0 0.5rem 0;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+.status-connected {
+  background: var(--color-success-500);
+  box-shadow: 0 0 8px var(--color-success-500);
+}
+
+.status-disconnected {
+  background: var(--color-error-500);
+}
+
+.status-connecting {
+  background: var(--color-primary-500);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+.status-error {
+  background: var(--color-warning-500);
+}
+
+.status-label {
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-connected {
+  background: rgba(var(--color-success-500), 0.15);
+  color: var(--color-success-700);
+}
+
+.badge-disconnected {
+  background: rgba(var(--color-error-500), 0.15);
+  color: var(--color-error-700);
+}
+
+.badge-connecting {
+  background: rgba(var(--color-primary-500), 0.15);
+  color: var(--color-primary-700);
+}
+
+.badge-error {
+  background: rgba(var(--color-warning-500), 0.15);
+  color: var(--color-warning-700);
+}
+
+.instance-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.text-medium-emphasis {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.detail-text {
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.instance-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn-connect {
+  width: 100%;
+}
+
+.btn-qr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-qr:hover:not(:disabled) {
+  background: rgba(var(--v-theme-surface), 0.8);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.btn-qr:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qr-code-panel,
+.pairing-code-panel {
+  padding: 1rem;
+  background: rgba(var(--v-theme-surface), 0.3);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-md);
+  margin-top: 1rem;
+  animation: fade-in 0.5s ease-out;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.qr-code-image {
+  display: block;
+  max-height: 14rem;
+  margin: 0 auto;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.qr-code-text {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  word-break: break-all;
+}
+
+.pairing-code {
+  font-family: 'Courier New', monospace;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-align: center;
+  color: rgb(var(--v-theme-on-surface));
+  padding: 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border-radius: var(--border-radius-md);
+}
+
+.warning-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(var(--color-warning-500), 0.1);
+  border: 1px solid rgba(var(--color-warning-500), 0.3);
+  border-radius: var(--border-radius-md);
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-warning-700);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background: rgba(18, 18, 18, 0.7);
+  }
+
+  .qr-code-panel,
+  .pairing-code-panel {
+    background: rgba(30, 30, 30, 0.5);
+  }
+
+  .warning-message {
+    background: rgba(var(--color-warning-500), 0.15);
+    color: var(--color-warning-300);
+  }
+}
+</style>
