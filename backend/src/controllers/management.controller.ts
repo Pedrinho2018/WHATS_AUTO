@@ -160,7 +160,8 @@ class ManagementController {
   async listTicketHistory(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
-      const contactPhone = req.params.contactPhone;
+      const contactPhoneParam = req.params.contactPhone;
+      const contactPhone = Array.isArray(contactPhoneParam) ? contactPhoneParam[0] : contactPhoneParam;
 
       if (!contactPhone) {
         throw new DomainError('Telefone do contato é obrigatório', 400);

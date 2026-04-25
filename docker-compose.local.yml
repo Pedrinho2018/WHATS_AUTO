@@ -1,0 +1,85 @@
+name: whatsauto-local
+
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: whatsauto_local_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_local_123
+      MYSQL_DATABASE: whatsauto
+      MYSQL_USER: whatsauto
+      MYSQL_PASSWORD: whatsauto_local_123
+    ports:
+      - "13306:3306"
+    volumes:
+      - mariadb_local_data:/var/lib/mysql
+      - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mariadb", "-uwhatsauto", "-pwhatsauto_local_123", "-e", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: whatsauto_local_backend
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SKIP_MIGRATIONS: "false"
+      ALLOWED_ORIGINS: http://localhost:18081,http://127.0.0.1:18081
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: whatsauto
+      DB_USER: whatsauto
+      DB_PASS: whatsauto_local_123
+      JWT_SECRET: local_dev_secret_with_more_than_32_chars
+      BUSINESS_NAME: WhatsAuto Local
+      COMPANY_SUBDOMAIN: norte
+      ADMIN_NAME: Administrador Local
+      ADMIN_EMAIL: admin@nortemtsistemas.com.br
+      ADMIN_PASSWORD: admin123456
+      ADMIN_RESET_PASSWORD: "true"
+      REVOLUTION_API_MODE: mock
+      EVOLUTION_SERVER_URL: http://evolution-disabled.local
+      EVOLUTION_API_KEY: local-evolution-key
+      N8N_WEBHOOK_URL: http://n8n-disabled.local
+    ports:
+      - "13000:3000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: whatsauto_local_frontend
+    restart: unless-stopped
+    init: true
+    ports:
+      - "18081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mariadb_local_data:

@@ -60,8 +60,7 @@ class MigrationRunner {
     try {
       console.log(`   └─ Executando: ${fileName}`);
 
-      // Importar o arquivo de migração (compilado para .js)
-      const migrationPath = path.join(__dirname, fileName.replace(/\.ts$/, '.js'));
+      const migrationPath = this.resolveMigrationPath(fileName);
       
       // Usar import dinâmico com cache busting
       delete require.cache[require.resolve(migrationPath)];
@@ -116,7 +115,7 @@ class MigrationRunner {
       );
 
       if (Array.isArray(results[0])) {
-        return results[0].map((row: any) => row.name);
+        return results[0].map((row: any) => this.canonicalMigrationName(row.name));
       }
 
       return [];
@@ -135,15 +134,18 @@ class MigrationRunner {
     try {
       const files = fs.readdirSync(migrationsDir);
 
-      return files
+      const migrationFiles = files
         .filter(
           (file) =>
-            file.match(/^\d{14}-.*\.js$/) && 
+            file.match(/^\d{14}-.*\.(ts|js)$/) && 
             !file.includes('.d.') && 
             file !== 'runner.js' &&
             file !== 'index.js' &&
             file !== 'cli.js'
         )
+        .map((file) => this.canonicalMigrationName(file));
+
+      return Array.from(new Set(migrationFiles))
         .sort();
     } catch (error) {
       console.warn('Diretório de migrações não encontrado');
@@ -151,14 +153,34 @@ class MigrationRunner {
     }
   }
 
+  private canonicalMigrationName(fileName: string): string {
+    return fileName.replace(/\.js$/, '.ts');
+  }
+
+  private resolveMigrationPath(fileName: string): string {
+    const candidates = [
+      path.join(__dirname, fileName),
+      path.join(__dirname, fileName.replace(/\.ts$/, '.js')),
+      path.join(__dirname, fileName.replace(/\.js$/, '.ts')),
+    ];
+
+    const migrationPath = candidates.find((candidate) => fs.existsSync(candidate));
+
+    if (!migrationPath) {
+      throw new Error(`Arquivo de migracao nao encontrado: ${fileName}`);
+    }
+
+    return migrationPath;
+  }
+
   /**
    * Registrar migração como executada
    */
   private async recordMigration(fileName: string): Promise<void> {
     await this.sequelize.query(
-      'INSERT INTO sequelizemeta (name) VALUES (?)',
+      'INSERT IGNORE INTO sequelizemeta (name) VALUES (?)',
       {
-        replacements: [fileName],
+        replacements: [this.canonicalMigrationName(fileName)],
       }
     );
   }
@@ -176,7 +198,7 @@ class MigrationRunner {
         return;
       }
 
-      const migrationPath = path.join(__dirname, lastMigration.replace(/\.ts$/, '.js'));
+      const migrationPath = this.resolveMigrationPath(lastMigration);
       delete require.cache[require.resolve(migrationPath)];
       const migration = require(migrationPath);
 

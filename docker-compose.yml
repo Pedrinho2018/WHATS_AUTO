@@ -16,7 +16,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-true}
+      - SKIP_MIGRATIONS=${SKIP_MIGRATIONS:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://nortemtsistemas.com.br,https://chat.nortemtsistemas.com.br,https://api.nortemtsistemas.com.br,https://n8n.nortemtsistemas.com.br,https://evolution.nortemtsistemas.com.br}
       - DB_SYNC_ON_STARTUP=${DB_SYNC_ON_STARTUP:-false}
       - DB_HOST=mariadb

@@ -1,6 +1,13 @@
 import { QueryInterface, DataTypes, Sequelize } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
+  const tableExists = await queryInterface.tableExists('bot_configs');
+
+  if (tableExists) {
+    console.log('Tabela bot_configs ja existe. Pulando criacao.');
+    return;
+  }
+
   await queryInterface.createTable('bot_configs', {
     id: {
       type: DataTypes.INTEGER,
