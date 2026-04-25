@@ -112,68 +112,88 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-fade-in">
-    <div class="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-      <section class="rounded-[2rem] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-6 text-slate-100 shadow-[0_24px_80px_rgba(15,23,42,0.18)] dark:border-slate-800">
-        <p class="text-xs uppercase tracking-[0.18em] text-emerald-300/85">Admin • Equipe e Agentes</p>
-        <h1 class="mt-3 text-3xl font-bold tracking-tight">Gerencie o acesso da operação com clareza.</h1>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+  <div class="admin-users-page">
+    <div class="top-section">
+      <section class="hero-card gradient-hero">
+        <p class="hero-label">Admin • Equipe e Agentes</p>
+        <h1 class="hero-title">Gerencie o acesso da operação com clareza.</h1>
+        <p class="hero-description">
           Cadastre novos usuários, controle papéis e altere o status de acesso sem perder a leitura da operação.
         </p>
 
-        <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-            <p class="text-xs uppercase tracking-[0.14em] text-slate-300/80">Total</p>
-            <p class="mt-1 text-2xl font-bold text-white">{{ stats.total }}</p>
+        <div class="stats-grid">
+          <div class="stat-card glass-stat">
+            <p class="stat-label">Total</p>
+            <p class="stat-value">{{ stats.total }}</p>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-            <p class="text-xs uppercase tracking-[0.14em] text-slate-300/80">Ativos</p>
-            <p class="mt-1 text-2xl font-bold text-white">{{ stats.active }}</p>
+          <div class="stat-card glass-stat">
+            <p class="stat-label">Ativos</p>
+            <p class="stat-value">{{ stats.active }}</p>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-            <p class="text-xs uppercase tracking-[0.14em] text-slate-300/80">Inativos</p>
-            <p class="mt-1 text-2xl font-bold text-white">{{ stats.inactive }}</p>
+          <div class="stat-card glass-stat">
+            <p class="stat-label">Inativos</p>
+            <p class="stat-value">{{ stats.inactive }}</p>
           </div>
-          <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-sm">
-            <p class="text-xs uppercase tracking-[0.14em] text-slate-300/80">Admins</p>
-            <p class="mt-1 text-2xl font-bold text-white">{{ stats.admins }}</p>
+          <div class="stat-card glass-stat">
+            <p class="stat-label">Admins</p>
+            <p class="stat-value">{{ stats.admins }}</p>
           </div>
         </div>
       </section>
 
-      <section class="rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/88">
-        <p class="text-xs uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Novo usuário</p>
-        <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Cadastrar acesso</h2>
-        <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">Preencha os dados do usuário e escolha o nível de acesso.</p>
+      <section class="form-card glass">
+        <p class="form-label gradient-text">Novo usuário</p>
+        <h2 class="form-title">Cadastrar acesso</h2>
+        <p class="form-description">Preencha os dados do usuário e escolha o nível de acesso.</p>
 
-        <div v-if="error" class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-800/80 dark:bg-rose-900/25 dark:text-rose-300">
+        <div v-if="error" class="alert alert-error">
+          <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           {{ error }}
         </div>
 
-        <div v-if="success" class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800/80 dark:bg-emerald-900/25 dark:text-emerald-300">
+        <div v-if="success" class="alert alert-success">
+          <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           {{ success }}
         </div>
 
-        <form class="mt-5 space-y-4" @submit.prevent="createUser">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <label class="space-y-1.5 sm:col-span-2">
-              <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">Nome</span>
-              <input v-model="form.name" class="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-emerald-900/40" placeholder="Nome completo" />
+        <form class="user-form" @submit.prevent="createUser">
+          <div class="form-grid">
+            <label class="form-field full-width">
+              <span class="field-label">Nome</span>
+              <input 
+                v-model="form.name" 
+                class="field-input" 
+                placeholder="Nome completo" 
+              />
             </label>
 
-            <label class="space-y-1.5 sm:col-span-2">
-              <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">Email</span>
-              <input v-model="form.email" class="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-emerald-900/40" placeholder="usuario@empresa.com" />
+            <label class="form-field full-width">
+              <span class="field-label">Email</span>
+              <input 
+                v-model="form.email" 
+                type="email"
+                class="field-input" 
+                placeholder="usuario@empresa.com" 
+              />
             </label>
 
-            <label class="space-y-1.5">
-              <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">Senha</span>
-              <input v-model="form.password" type="password" class="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-emerald-900/40" placeholder="Senha inicial" />
+            <label class="form-field">
+              <span class="field-label">Senha</span>
+              <input 
+                v-model="form.password" 
+                type="password" 
+                class="field-input" 
+                placeholder="Senha inicial" 
+              />
             </label>
 
-            <label class="space-y-1.5">
-              <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">Perfil</span>
-              <select v-model="form.role" class="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-emerald-900/40">
+            <label class="form-field">
+              <span class="field-label">Perfil</span>
+              <select v-model="form.role" class="field-input">
                 <option value="agent">Agente</option>
                 <option value="manager">Gestor</option>
                 <option value="viewer">Leitura</option>
@@ -185,11 +205,11 @@ onMounted(async () => {
           <button
             type="submit"
             :disabled="isSaving"
-            class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-700 hover:to-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+            class="btn-submit gradient-btn"
           >
-            <svg v-if="isSaving" class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            <div v-if="isSaving" class="spinner-sm"></div>
+            <svg v-else class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             {{ isSaving ? 'Salvando...' : 'Cadastrar usuário' }}
           </button>
@@ -197,61 +217,76 @@ onMounted(async () => {
       </section>
     </div>
 
-    <section class="rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/88">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <section class="users-section glass">
+      <div class="section-header">
         <div>
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Base de acesso</p>
-          <h2 class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">Usuários cadastrados</h2>
+          <p class="section-label">Base de acesso</p>
+          <h2 class="section-title">Usuários cadastrados</h2>
         </div>
 
-        <label class="relative block w-full max-w-md">
-          <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </span>
-          <input v-model="searchQuery" type="text" class="w-full rounded-2xl border border-slate-300/80 bg-white py-3 pl-9 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-emerald-900/40" placeholder="Buscar por nome, email ou perfil" />
-        </label>
+        <div class="search-wrapper">
+          <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            class="search-input" 
+            placeholder="Buscar por nome, email ou perfil" 
+          />
+        </div>
       </div>
 
-      <div v-if="loading" class="mt-5 rounded-2xl border border-dashed border-slate-300/70 bg-slate-50 px-4 py-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
         Carregando usuários...
       </div>
 
-      <div v-else class="mt-5 space-y-4">
-        <div v-if="filteredUsers.length === 0" class="rounded-2xl border border-dashed border-slate-300/70 bg-slate-50 px-4 py-8 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+      <div v-else class="users-list">
+        <div v-if="filteredUsers.length === 0" class="empty-state">
+          <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
           Nenhum usuário encontrado com o filtro atual.
         </div>
 
         <article
-          v-for="user in filteredUsers"
+          v-for="(user, index) in filteredUsers"
           :key="user.id"
-          class="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-4 transition hover:border-emerald-200 hover:bg-white dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800 md:flex-row md:items-center md:justify-between"
+          class="user-card"
+          :style="{ animationDelay: `${index * 0.05}s` }"
         >
-          <div class="flex items-start gap-4">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20">
+          <div class="user-info">
+            <div class="user-avatar gradient-avatar">
               {{ user.name.charAt(0).toUpperCase() }}
             </div>
 
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="font-semibold text-slate-900 dark:text-white">{{ user.name }}</p>
-                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="user.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'">
+            <div class="user-details">
+              <div class="user-badges">
+                <p class="user-name">{{ user.name }}</p>
+                <span 
+                  class="status-badge"
+                  :class="user.is_active ? 'badge-active' : 'badge-inactive'"
+                >
                   {{ user.is_active ? 'Ativo' : 'Inativo' }}
                 </span>
-                <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                <span class="role-badge">
                   {{ roleLabels[user.role] }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{{ user.email }}</p>
+              <p class="user-email">{{ user.email }}</p>
             </div>
           </div>
 
           <button
-            class="rounded-2xl border border-slate-300/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+            class="btn-toggle"
             :disabled="isSaving"
             @click="toggleUser(user)"
           >
+            <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="user.is_active" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {{ user.is_active ? 'Desativar' : 'Ativar' }}
           </button>
         </article>
@@ -259,3 +294,559 @@ onMounted(async () => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.admin-users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fade-in 0.6s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.top-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 1280px) {
+  .top-section {
+    grid-template-columns: 1.08fr 0.92fr;
+  }
+}
+
+.hero-card {
+  padding: 1.5rem;
+  border-radius: var(--border-radius-xl);
+  animation: slide-up 0.6s ease-out backwards;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #064e3b 100%);
+  color: white;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hero-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(52, 211, 153, 0.9);
+}
+
+.hero-title {
+  margin-top: 0.75rem;
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hero-description {
+  margin-top: 0.75rem;
+  max-width: 42rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat-card {
+  padding: 1rem;
+  border-radius: var(--border-radius-lg);
+}
+
+.glass-stat {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.stat-value {
+  margin-top: 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.form-card {
+  padding: 1.5rem;
+  border-radius: var(--border-radius-xl);
+  animation: slide-up 0.6s ease-out 0.1s backwards;
+}
+
+.glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  box-shadow: var(--shadow-lg);
+}
+
+.form-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+.gradient-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.form-title {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.form-description {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+}
+
+.alert-error {
+  background: rgba(var(--color-error-500), 0.1);
+  border: 1px solid rgba(var(--color-error-500), 0.3);
+  color: var(--color-error-700);
+}
+
+.alert-success {
+  background: rgba(var(--color-success-500), 0.1);
+  border: 1px solid rgba(var(--color-success-500), 0.3);
+  color: var(--color-success-700);
+}
+
+.icon-sm {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.user-form {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.field-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.field-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.gradient-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--gradient-brand);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.gradient-btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.gradient-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-sm {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.users-section {
+  padding: 1.5rem;
+  border-radius: var(--border-radius-xl);
+  animation: slide-up 0.6s ease-out 0.2s backwards;
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .section-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.section-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.section-title {
+  margin-top: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.25rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.search-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: rgba(var(--v-theme-surface), 0.3);
+  border: 1px dashed rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  text-align: center;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.75rem;
+  border: 3px solid rgba(var(--v-theme-primary), 0.2);
+  border-top-color: rgb(var(--v-theme-primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(var(--v-theme-surface), 0.3);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+  animation: slide-in 0.5s ease-out backwards;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .user-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.user-card:hover {
+  background: rgba(var(--v-theme-surface), 0.5);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.user-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--border-radius-lg);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.gradient-avatar {
+  background: var(--gradient-brand);
+}
+
+.user-details {
+  flex: 1;
+}
+
+.user-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.user-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0;
+}
+
+.status-badge,
+.role-badge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: rgba(var(--color-success-500), 0.15);
+  color: var(--color-success-700);
+}
+
+.badge-inactive {
+  background: rgba(var(--v-theme-on-surface), 0.1);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.role-badge {
+  background: rgba(var(--v-theme-on-surface), 0.1);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  margin: 0;
+}
+
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-toggle:hover:not(:disabled) {
+  background: rgba(var(--v-theme-surface), 0.8);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background: rgba(18, 18, 18, 0.7);
+  }
+
+  .user-card {
+    background: rgba(30, 30, 30, 0.5);
+  }
+
+  .alert-error {
+    color: var(--color-error-300);
+  }
+
+  .alert-success {
+    color: var(--color-success-300);
+  }
+}
+</style>
