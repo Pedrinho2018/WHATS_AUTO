@@ -4,6 +4,19 @@
 
 ---
 
+## 🎯 Problema Encontrado
+
+❌ **Causa Raiz:** `EVOLUTION_WEBHOOK_URL` não estava configurada!
+
+O Evolution API estava preparado para enviar webhooks (`WEBHOOK_EVENTS_MESSAGES_UPSERT=true`), mas **não tinha nenhuma URL** para onde enviá-los. Isso significa que as mensagens chegavam no servidor WhatsApp, mas o Evolution não sabia como notificar seu backend.
+
+### ✅ Solução Aplicada
+- ✅ Adicionado `EVOLUTION_WEBHOOK_URL` ao `.env.example`
+- ✅ Configurado `WEBHOOK_URL` + `WEBHOOK_API_TOKEN` no docker-compose.yml
+- ✅ Evolution agora sabe para onde enviar webhooks de entrada
+
+---
+
 ## 📊 Fluxo de Entrada de Mensagens
 
 ```
@@ -32,22 +45,33 @@ Frontend recebe via WebSocket
 
 ### 1️⃣ Evolution API Enviando Webhooks?
 
+⚠️ **VERIFICAÇÃO CRÍTICA:** Antes de tudo, certifique-se que `.env` tem:
 ```bash
-# Verificar logs do Evolution API
-docker compose logs evolution | grep -i webhook
+EVOLUTION_WEBHOOK_URL=https://api.nortemtsistemas.com.br/webhooks/evolution
+EVOLUTION_WEBHOOK_SECRET=seu_secreto_minimo_20_caracteres
+```
 
-# Esperado: Mensagens de webhook sendo enviadas
+Se não tiver, copie de `.env.example` e atualize agora!
+
+```bash
+# Verificar logs do Evolution
+docker compose logs evolution | grep -E "webhook|Webhook|WEBHOOK"
+
+# Esperado: 
+# - WEBHOOK_URL configurada
+# - Tentativas de envio de webhooks
 ```
 
 **Se não houver logs:**
-- Evolution não está configurada para enviar webhooks
-- Falta `WEBHOOK_URL` no `.env`
+- Evolution não foi reiniciado após adicionar `EVOLUTION_WEBHOOK_URL`
+- Falta `WEBHOOK_URL` no docker-compose.yml (já corrigido)
 
 **Solução:**
-```env
-# .env
-EVOLUTION_WEBHOOK_URL=https://api.nortemtsistemas.com.br/webhooks/evolution
-EVOLUTION_WEBHOOK_SECRET=seu_secreto_minimo_20_caracteres
+```bash
+# Reconstruir Evolution com nova configuração
+docker compose down evolution
+docker compose up -d evolution
+docker compose logs evolution | tail -50
 ```
 
 ---
@@ -212,6 +236,8 @@ curl -I http://api.nortemtsistemas.com.br/socket.io/
 
 ## 📋 Variáveis Críticas no `.env`
 
+⚠️ **PROBLEMA ENCONTRADO:** `EVOLUTION_WEBHOOK_URL` estava faltando!
+
 Certifique-se que estão corretas:
 
 ```env
@@ -219,7 +245,7 @@ Certifique-se que estão corretas:
 EVOLUTION_SERVER_URL=https://evolution.nortemtsistemas.com.br
 EVOLUTION_API_KEY=sua_chave_minimo_20_caracteres
 
-# ✅ DEVE estar configurado no Evolution
+# 🔴 CRÍTICA (FALTAVA!) - URL que o Evolution chama para messenger inbound
 EVOLUTION_WEBHOOK_URL=https://api.nortemtsistemas.com.br/webhooks/evolution
 EVOLUTION_WEBHOOK_SECRET=seu_secreto_minimo_20_caracteres
 
@@ -234,24 +260,42 @@ SOCKET_PATH=/socket.io
 ALLOWED_ORIGINS=https://nortemtsistemas.com.br,https://api.nortemtsistemas.com.br,https://chat.nortemtsistemas.com.br
 ```
 
+### ✅ Correção Aplicada
+- Adicionado `EVOLUTION_WEBHOOK_URL` ao `.env.example`
+- Adicionado `WEBHOOK_URL` e `WEBHOOK_API_TOKEN` ao docker-compose.yml Evolution
+- Docker-compose agora passa as variáveis corretamente para o Evolution
+
 ---
 
 ## 🚨 Comandos de Emergência
 
 ```bash
-# Limpar + reiniciar tudo
-docker compose down
-docker volume rm whatsauto_mariadb_data  # ⚠️ APAGA dados!
-docker compose up -d
+# 1️⃣ PRIMEIRO: Atualizar .env com EVOLUTION_WEBHOOK_URL
+# Copiar .env.example para .env e preencher:
+# EVOLUTION_WEBHOOK_URL=https://api.seu-dominio.com.br/webhooks/evolution
 
-# Ou apenas reiniciar services
+# 2️⃣ Reconstruir Evolution com novas variáveis
+docker compose down
+docker compose up -d evolution
+
+# 3️⃣ Reiniciar backend e frontend
 docker compose restart backend frontend
 
-# Monitorar tudo em tempo real
-docker compose logs -f backend frontend mariadb
+# 4️⃣ Monitorar tudo em tempo real
+docker compose logs -f backend evolution mariadb
 
-# Limpar logs antigos
-docker compose logs --tail=0 backend > /dev/null
+# 5️⃣ Testar webhook manualmente após tudo online
+curl -X POST https://api.seu-dominio.com.br/webhooks/evolution \
+  -H "Authorization: Bearer sua_chave_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "seu_whatsapp",
+    "data": {
+      "key": {"remoteJid": "5586999999999@s.whatsapp.net", "fromMe": false},
+      "message": {"conversation": "Mensagem de teste"},
+      "pushName": "Cliente"
+    }
+  }'
 ```
 
 ---

@@ -125,6 +125,8 @@ services:
       - LOG_COLOR=true
       - DEL_INSTANCE=false
       - QRCODE_LIMIT=30
+      - WEBHOOK_URL=${EVOLUTION_WEBHOOK_URL:-https://api.nortemtsistemas.com.br/webhooks/evolution}
+      - WEBHOOK_API_TOKEN=${EVOLUTION_API_KEY}
       - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
       - WEBHOOK_EVENTS_CONNECTION_UPDATE=true
       - WEBHOOK_EVENTS_QRCODE_UPDATED=true
