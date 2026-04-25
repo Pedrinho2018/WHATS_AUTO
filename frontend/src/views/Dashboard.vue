@@ -3,7 +3,6 @@ import { computed, ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import api from '../services/api'
 import { sendPing, useSocketState } from '../services/socket'
-import { UiSectionHeader } from '../components/ui'
 
 const stats = ref({
   totalTickets: 0,
@@ -17,7 +16,7 @@ const stats = ref({
 
 const loading = ref(true)
 const lastUpdatedAt = ref('')
-const { isConnected, lastError, lastServerMessage, lastPongAt, lastRealtimeEvent, ticketEventsCount, messageEventsCount } = useSocketState()
+const { isConnected, lastServerMessage, ticketEventsCount, messageEventsCount } = useSocketState()
 
 const todayLabel = computed(() => dayjs().format('DD/MM/YYYY'))
 const realtimeBadgeClass = computed(() =>
