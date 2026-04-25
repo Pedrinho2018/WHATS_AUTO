@@ -95,5 +95,6 @@ if (docsEnabled) {
 }
 
 app.use('/api', routes);
+app.use(routes);
 
 export default app;
