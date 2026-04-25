@@ -5,7 +5,25 @@ js_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-API_URL_VALUE="${VITE_API_URL:-/api}"
+normalize_api_url() {
+  value="$(printf '%s' "$1" | sed 's:/*$::')"
+
+  if [ -z "$value" ]; then
+    printf '%s' '/api'
+    return
+  fi
+
+  case "$value" in
+    */api)
+      printf '%s' "$value"
+      ;;
+    *)
+      printf '%s/api' "$value"
+      ;;
+  esac
+}
+
+API_URL_VALUE="$(normalize_api_url "${VITE_API_URL:-/api}")"
 SOCKET_URL_VALUE="${VITE_SOCKET_URL:-}"
 SOCKET_PATH_VALUE="${VITE_SOCKET_PATH:-/socket.io}"
 TYPEBOT_BUILDER_URL_VALUE="${VITE_TYPEBOT_BUILDER_URL:-https://app.typebot.io/typebots}"

@@ -27,8 +27,22 @@ const readValue = (runtimeValue: unknown, buildValue: unknown, fallback = ''): s
   return fallback;
 };
 
+const normalizeApiUrl = (value: string): string => {
+  const normalized = value.trim().replace(/\/+$/, '');
+
+  if (!normalized) {
+    return '/api';
+  }
+
+  if (normalized.endsWith('/api')) {
+    return normalized;
+  }
+
+  return `${normalized}/api`;
+};
+
 export const appConfig = {
-  apiUrl: readValue(runtimeConfig.API_URL, import.meta.env.VITE_API_URL, '/api'),
+  apiUrl: normalizeApiUrl(readValue(runtimeConfig.API_URL, import.meta.env.VITE_API_URL, '/api')),
   socketUrl: readValue(runtimeConfig.SOCKET_URL, import.meta.env.VITE_SOCKET_URL),
   socketPath: readValue(runtimeConfig.SOCKET_PATH, import.meta.env.VITE_SOCKET_PATH, '/socket.io'),
   typebotBuilderUrl: readValue(
