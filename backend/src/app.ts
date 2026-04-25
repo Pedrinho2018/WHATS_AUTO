@@ -67,7 +67,7 @@ morgan.token('request-id', (req) => (req.headers['x-request-id'] as string | und
 
 app.use(
 	morgan(':method :url :status :res[content-length] - :response-time ms request_id=:request-id', {
-		skip: (req) => req.path === '/api/health',
+		skip: (req) => req.path === '/api/health' || req.path === '/health',
 		stream: {
 			write: (message: string) => {
 				logger.info(message.trim());
@@ -77,6 +77,14 @@ app.use(
 );
 app.use(express.json({ limit: '1mb', strict: true }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+
+app.get('/health', (_req, res) => {
+	return res.json({
+		status: 'ok',
+		timestamp: new Date().toISOString(),
+		version: process.env.npm_package_version || '1.0.0',
+	});
+});
 
 if (docsEnabled) {
 	app.get('/api/docs.json', (_req, res) => {

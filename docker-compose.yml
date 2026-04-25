@@ -94,6 +94,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
       - "traefik.http.routers.frontend-chat.rule=Host(`chat.${ROOT_DOMAIN:-nortemtsistemas.com.br}`)"
       - "traefik.http.routers.frontend-chat.entrypoints=websecure"
       - "traefik.http.routers.frontend-chat.tls=true"
