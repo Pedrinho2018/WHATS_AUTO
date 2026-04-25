@@ -1,0 +1,328 @@
+/**
+ * NorteMT Design System - Design Tokens
+ * Version: 2.0.0
+ * Modern, Professional & Consistent
+ */
+
+:root {
+  /* ============================================
+     COLOR SYSTEM - Modern Gradient Palette
+     ============================================ */
+  
+  /* Primary - Deep Ocean Blue */
+  --color-primary-50: #e6f1ff;
+  --color-primary-100: #b3d9ff;
+  --color-primary-200: #80c1ff;
+  --color-primary-300: #4da9ff;
+  --color-primary-400: #1a91ff;
+  --color-primary-500: #0066cc; /* Main */
+  --color-primary-600: #0052a3;
+  --color-primary-700: #003d7a;
+  --color-primary-800: #002952;
+  --color-primary-900: #001429;
+
+  /* Secondary - Electric Purple */
+  --color-secondary-50: #f3e6ff;
+  --color-secondary-100: #d9b3ff;
+  --color-secondary-200: #bf80ff;
+  --color-secondary-300: #a64dff;
+  --color-secondary-400: #8c1aff;
+  --color-secondary-500: #7300e6; /* Main */
+  --color-secondary-600: #5c00b8;
+  --color-secondary-700: #45008a;
+  --color-secondary-800: #2e005c;
+  --color-secondary-900: #17002e;
+
+  /* Accent - Vibrant Cyan */
+  --color-accent-50: #e6ffff;
+  --color-accent-100: #b3f5ff;
+  --color-accent-200: #80ebff;
+  --color-accent-300: #4de1ff;
+  --color-accent-400: #1ad7ff;
+  --color-accent-500: #00bcd4; /* Main */
+  --color-accent-600: #0097a7;
+  --color-accent-700: #00727a;
+  --color-accent-800: #004d52;
+  --color-accent-900: #002829;
+
+  /* Success - Fresh Green */
+  --color-success-50: #e8f5e9;
+  --color-success-100: #c8e6c9;
+  --color-success-200: #a5d6a7;
+  --color-success-300: #81c784;
+  --color-success-400: #66bb6a;
+  --color-success-500: #4caf50;
+  --color-success-600: #43a047;
+  --color-success-700: #388e3c;
+  --color-success-800: #2e7d32;
+  --color-success-900: #1b5e20;
+
+  /* Warning - Warm Orange */
+  --color-warning-50: #fff3e0;
+  --color-warning-100: #ffe0b2;
+  --color-warning-200: #ffcc80;
+  --color-warning-300: #ffb74d;
+  --color-warning-400: #ffa726;
+  --color-warning-500: #ff9800;
+  --color-warning-600: #fb8c00;
+  --color-warning-700: #f57c00;
+  --color-warning-800: #ef6c00;
+  --color-warning-900: #e65100;
+
+  /* Error - Bold Red */
+  --color-error-50: #ffebee;
+  --color-error-100: #ffcdd2;
+  --color-error-200: #ef9a9a;
+  --color-error-300: #e57373;
+  --color-error-400: #ef5350;
+  --color-error-500: #f44336;
+  --color-error-600: #e53935;
+  --color-error-700: #d32f2f;
+  --color-error-800: #c62828;
+  --color-error-900: #b71c1c;
+
+  /* WhatsApp Brand */
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #1da851;
+
+  /* Neutrals - Cool Gray Scale */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* ============================================
+     SEMANTIC COLORS - Light Theme
+     ============================================ */
+  --color-background: var(--color-neutral-50);
+  --color-surface: #ffffff;
+  --color-surface-variant: var(--color-neutral-100);
+  --color-border: var(--color-neutral-200);
+  --color-divider: var(--color-neutral-200);
+  
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-tertiary: var(--color-neutral-500);
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-inverse: #ffffff;
+
+  /* Interactive States */
+  --color-hover: rgba(0, 102, 204, 0.08);
+  --color-pressed: rgba(0, 102, 204, 0.12);
+  --color-focus: rgba(0, 102, 204, 0.16);
+  --color-selected: rgba(0, 102, 204, 0.12);
+  --color-disabled: var(--color-neutral-100);
+
+  /* Overlays */
+  --color-overlay-light: rgba(255, 255, 255, 0.9);
+  --color-overlay-dark: rgba(15, 23, 42, 0.6);
+  --color-scrim: rgba(0, 0, 0, 0.32);
+
+  /* ============================================
+     GRADIENTS - Modern & Dynamic
+     ============================================ */
+  --gradient-primary: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+  --gradient-secondary: linear-gradient(135deg, #7300e6 0%, #5c00b8 100%);
+  --gradient-accent: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
+  --gradient-success: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  --gradient-brand: linear-gradient(135deg, #0066cc 0%, #7300e6 50%, #00bcd4 100%);
+  --gradient-vibrant: linear-gradient(135deg, #ff9800 0%, #f44336 50%, #7300e6 100%);
+  --gradient-ocean: linear-gradient(180deg, #0066cc 0%, #00bcd4 100%);
+  --gradient-sunset: linear-gradient(135deg, #ff9800 0%, #f44336 100%);
+  
+  /* Mesh Gradients */
+  --gradient-mesh-1: radial-gradient(at 0% 0%, rgba(0, 102, 204, 0.1) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, rgba(115, 0, 230, 0.08) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(0, 188, 212, 0.06) 0px, transparent 50%),
+                      radial-gradient(at 0% 100%, rgba(76, 175, 80, 0.05) 0px, transparent 50%);
+
+  /* ============================================
+     TYPOGRAPHY SYSTEM
+     ============================================ */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.25rem;     /* 20px */
+  --font-size-2xl: 1.5rem;     /* 24px */
+  --font-size-3xl: 1.875rem;   /* 30px */
+  --font-size-4xl: 2.25rem;    /* 36px */
+  --font-size-5xl: 3rem;       /* 48px */
+
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+
+  /* ============================================
+     SPACING SYSTEM (8px base)
+     ============================================ */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+  --space-24: 6rem;     /* 96px */
+
+  /* ============================================
+     BORDER RADIUS SYSTEM
+     ============================================ */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-base: 0.5rem;   /* 8px */
+  --radius-md: 0.75rem;    /* 12px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.5rem;     /* 24px */
+  --radius-2xl: 2rem;      /* 32px */
+  --radius-full: 9999px;
+
+  /* ============================================
+     SHADOW SYSTEM - Elevation
+     ============================================ */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-2xl: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+  
+  /* Colored Shadows */
+  --shadow-primary: 0 8px 16px -4px rgba(0, 102, 204, 0.24);
+  --shadow-secondary: 0 8px 16px -4px rgba(115, 0, 230, 0.24);
+  --shadow-accent: 0 8px 16px -4px rgba(0, 188, 212, 0.24);
+  
+  /* Inner Shadows */
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  --shadow-inner-lg: inset 0 4px 8px 0 rgba(0, 0, 0, 0.1);
+
+  /* ============================================
+     ANIMATION & TRANSITIONS
+     ============================================ */
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* ============================================
+     Z-INDEX SYSTEM
+     ============================================ */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+  --z-notification: 1700;
+  --z-max: 9999;
+
+  /* ============================================
+     COMPONENT SPECIFIC
+     ============================================ */
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 72px;
+  
+  --button-height-sm: 32px;
+  --button-height-base: 40px;
+  --button-height-lg: 48px;
+  
+  --input-height-sm: 36px;
+  --input-height-base: 44px;
+  --input-height-lg: 52px;
+
+  /* ============================================
+     GLASSMORPHISM EFFECTS
+     ============================================ */
+  --glass-background: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-blur: blur(10px);
+  --glass-blur-heavy: blur(20px);
+}
+
+/* ============================================
+   DARK THEME OVERRIDES
+   ============================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: var(--color-neutral-900);
+    --color-surface: var(--color-neutral-800);
+    --color-surface-variant: var(--color-neutral-700);
+    --color-border: var(--color-neutral-700);
+    --color-divider: var(--color-neutral-700);
+    
+    --color-text-primary: var(--color-neutral-50);
+    --color-text-secondary: var(--color-neutral-300);
+    --color-text-tertiary: var(--color-neutral-400);
+    --color-text-disabled: var(--color-neutral-600);
+    
+    --color-hover: rgba(0, 188, 212, 0.12);
+    --color-pressed: rgba(0, 188, 212, 0.16);
+    --color-focus: rgba(0, 188, 212, 0.20);
+    
+    --glass-background: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
+  }
+}
+
+html.dark {
+  color-scheme: dark;
+  
+  --color-background: var(--color-neutral-900);
+  --color-surface: var(--color-neutral-800);
+  --color-surface-variant: var(--color-neutral-700);
+  --color-border: var(--color-neutral-700);
+  --color-divider: var(--color-neutral-700);
+  
+  --color-text-primary: var(--color-neutral-50);
+  --color-text-secondary: var(--color-neutral-300);
+  --color-text-tertiary: var(--color-neutral-400);
+  --color-text-disabled: var(--color-neutral-600);
+  
+  --color-hover: rgba(0, 188, 212, 0.12);
+  --color-pressed: rgba(0, 188, 212, 0.16);
+  --color-focus: rgba(0, 188, 212, 0.20);
+  
+  --glass-background: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
