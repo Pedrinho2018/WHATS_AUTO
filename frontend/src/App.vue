@@ -12,7 +12,6 @@ const theme = useTheme()
 const display = useDisplay()
 
 const drawer = ref(false)
-const isLoading = ref(true)
 const isDarkMode = ref(false)
 const searchQuery = ref('')
 const helpDialog = ref(false)
@@ -89,11 +88,9 @@ watch(
   }
 )
 
-onMounted(async () => {
+onMounted(() => {
   initTheme()
   drawer.value = !isMobile.value
-  await authStore.fetchUser()
-  isLoading.value = false
 })
 
 const handleLogout = () => {
@@ -106,15 +103,6 @@ const handleLogout = () => {
   <v-app>
     <v-main>
       <router-view v-if="isAuthRoute" />
-
-      <v-container
-        v-else-if="isLoading"
-        class="d-flex align-center justify-center"
-        fluid
-        style="min-height: 100vh;"
-      >
-        <v-progress-circular color="primary" indeterminate size="52" />
-      </v-container>
 
       <template v-else>
         <v-navigation-drawer
