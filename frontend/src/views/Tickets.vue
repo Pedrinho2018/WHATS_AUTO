@@ -60,11 +60,11 @@ const statusLabel: Record<Ticket['status'], string> = {
 }
 
 const statusClass: Record<Ticket['status'], string> = {
-  open: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
-  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
-  in_progress: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
-  resolved: 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
-  closed: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  open: 'status-badge status-open',
+  pending: 'status-badge status-pending',
+  in_progress: 'status-badge status-progress',
+  resolved: 'status-badge status-resolved',
+  closed: 'status-badge status-closed',
 }
 
 const canReplyToTicket = computed(() => ['admin', 'manager', 'agent', 'viewer'].includes(authStore.user?.role || ''))
@@ -291,13 +291,13 @@ const closeNewChatModal = () => {
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+  <div class="tickets-page">
+    <div class="page-header">
       <UiSectionHeader title="Conversas" subtitle="Acompanhe sua fila em tempo real e priorize atendimentos." />
 
-      <div class="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
-        <label class="relative block w-full lg:w-96">
-          <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 dark:text-gray-500">
+      <div class="header-actions">
+        <div class="search-wrapper">
+          <span class="search-icon">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -306,111 +306,140 @@ const closeNewChatModal = () => {
             v-model="searchQuery"
             type="text"
             placeholder="Buscar por nome, telefone, instância ou status"
-            class="w-full rounded-xl border border-gray-300 bg-white py-3 pl-9 pr-4 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+            class="search-input"
           />
-        </label>
+        </div>
 
         <button
           type="button"
-          class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          class="btn-new-chat gradient-btn"
           @click="openNewChatModal"
         >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
           Novo chat
         </button>
       </div>
     </div>
 
-    <UiCard v-if="loading" class="text-gray-600 dark:text-gray-300">
-      Carregando conversas...
+    <UiCard v-if="loading" class="loading-card">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        Carregando conversas...
+      </div>
     </UiCard>
 
-    <div v-else class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <div v-if="filteredTickets.length === 0" class="rounded-lg border border-dashed border-gray-300 p-5 text-gray-600 dark:border-gray-600 dark:text-gray-300">
+    <div v-else class="tickets-container glass">
+      <div v-if="filteredTickets.length === 0" class="empty-state">
+        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
         Nenhuma conversa registrada ainda.
       </div>
 
-      <div v-for="item in filteredTickets" :key="item.id" class="flex flex-col gap-3 rounded-lg border border-gray-200/80 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900 md:flex-row md:items-center md:justify-between">
-        <div class="w-full">
-          <p class="font-semibold text-gray-900 dark:text-white">{{ item.contact_name || item.contact_phone }}</p>
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            {{ item.instance?.name || 'Instância não vinculada' }} • Prioridade {{ item.priority }}
-          </p>
-          <p v-if="item.updated_at" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Atualizado em {{ dayjs(item.updated_at).format('DD/MM/YYYY HH:mm') }}
-          </p>
+      <div v-for="(item, index) in filteredTickets" :key="item.id" class="ticket-card" :style="{ animationDelay: `${index * 0.05}s` }">
+        <div class="ticket-content">
+          <div class="ticket-info">
+            <h3 class="ticket-name">{{ item.contact_name || item.contact_phone }}</h3>
+            <p class="ticket-meta">
+              <svg class="inline w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+              {{ item.instance?.name || 'Instância não vinculada' }} • Prioridade {{ item.priority }}
+            </p>
+            <p v-if="item.updated_at" class="ticket-time">
+              <svg class="inline w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {{ dayjs(item.updated_at).format('DD/MM/YYYY HH:mm') }}
+            </p>
 
-          <div class="mt-3 flex flex-wrap gap-2">
-            <button
-              class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-              @click="toggleConversation(item.id)"
-            >
-              {{ expandedTicketId === item.id ? 'Fechar conversa' : 'Abrir conversa' }}
-            </button>
-          </div>
-
-          <div v-if="expandedTicketId === item.id" class="mt-4 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-950/50">
-            <div v-if="messagesLoadingByTicketId[item.id]" class="text-sm text-gray-600 dark:text-gray-300">
-              Carregando mensagens...
-            </div>
-
-            <div v-else class="space-y-2">
-              <div v-if="!messagesByTicketId[item.id]?.length" class="text-sm text-gray-500 dark:text-gray-400">
-                Nenhuma mensagem nesta conversa ainda.
-              </div>
-
-              <div
-                v-for="message in messagesByTicketId[item.id] || []"
-                :key="message.id"
-                :class="[
-                  'max-w-[85%] rounded-xl px-3 py-2 text-sm',
-                  message.direction === 'outbound'
-                    ? 'ml-auto bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200'
-                    : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-                ]"
-              >
-                <p class="whitespace-pre-wrap">{{ message.content || '(sem conteúdo)' }}</p>
-                <p class="mt-1 text-[11px] opacity-70">
-                  {{ dayjs(message.created_at).format('DD/MM HH:mm') }} • {{ message.status }}
-                </p>
-              </div>
-            </div>
-
-            <div v-if="canReplyToTicket" class="mt-3 flex gap-2">
-              <input
-                :value="messageDraftByTicketId[item.id] || ''"
-                type="text"
-                placeholder="Digite a resposta para o usuário"
-                class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
-                @input="messageDraftByTicketId = { ...messageDraftByTicketId, [item.id]: ($event.target as HTMLInputElement).value }"
-                @keyup.enter="sendMessageToTicket(item)"
-              />
+            <div class="ticket-actions">
               <button
-                class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-                :disabled="sendingMessageByTicketId[item.id]"
-                @click="sendMessageToTicket(item)"
+                class="btn-toggle"
+                @click="toggleConversation(item.id)"
               >
-                {{ sendingMessageByTicketId[item.id] ? 'Enviando...' : 'Enviar' }}
+                <svg v-if="expandedTicketId !== item.id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                {{ expandedTicketId === item.id ? 'Fechar conversa' : 'Abrir conversa' }}
               </button>
             </div>
-          </div>
-        </div>
 
-        <div class="flex items-center gap-2">
-          <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass[item.status]">
-            {{ statusLabel[item.status] }}
-          </span>
-          <select
-            class="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-            :value="item.status"
-            :disabled="updatingTicketId === item.id"
-            @change="(event) => handleStatusChange(item.id, event)"
-          >
-            <option value="open">Aberto</option>
-            <option value="pending">Pendente</option>
-            <option value="in_progress">Em atendimento</option>
-            <option value="resolved">Resolvido</option>
-            <option value="closed">Fechado</option>
-          </select>
+            <div v-if="expandedTicketId === item.id" class="conversation-panel">
+              <div v-if="messagesLoadingByTicketId[item.id]" class="messages-loading">
+                <div class="spinner-sm"></div>
+                Carregando mensagens...
+              </div>
+
+              <div v-else class="messages-container">
+                <div v-if="!messagesByTicketId[item.id]?.length" class="no-messages">
+                  <svg class="w-10 h-10 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  Nenhuma mensagem nesta conversa ainda.
+                </div>
+
+                <div
+                  v-for="message in messagesByTicketId[item.id] || []"
+                  :key="message.id"
+                  :class="[
+                    'message-bubble',
+                    message.direction === 'outbound' ? 'message-outbound' : 'message-inbound'
+                  ]"
+                >
+                  <p class="message-text">{{ message.content || '(sem conteúdo)' }}</p>
+                  <p class="message-meta">
+                    {{ dayjs(message.created_at).format('DD/MM HH:mm') }} • {{ message.status }}
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="canReplyToTicket" class="reply-section">
+                <input
+                  :value="messageDraftByTicketId[item.id] || ''"
+                  type="text"
+                  placeholder="Digite a resposta para o usuário"
+                  class="reply-input"
+                  @input="messageDraftByTicketId = { ...messageDraftByTicketId, [item.id]: ($event.target as HTMLInputElement).value }"
+                  @keyup.enter="sendMessageToTicket(item)"
+                />
+                <button
+                  class="btn-send gradient-btn"
+                  :disabled="sendingMessageByTicketId[item.id]"
+                  @click="sendMessageToTicket(item)"
+                >
+                  <svg v-if="!sendingMessageByTicketId[item.id]" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  <div v-else class="spinner-sm"></div>
+                  {{ sendingMessageByTicketId[item.id] ? 'Enviando...' : 'Enviar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ticket-status">
+            <span :class="statusClass[item.status]">
+              {{ statusLabel[item.status] }}
+            </span>
+            <select
+              class="status-select"
+              :value="item.status"
+              :disabled="updatingTicketId === item.id"
+              @change="(event) => handleStatusChange(item.id, event)"
+            >
+              <option value="open">Aberto</option>
+              <option value="pending">Pendente</option>
+              <option value="in_progress">Em atendimento</option>
+              <option value="resolved">Resolvido</option>
+              <option value="closed">Fechado</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -422,10 +451,10 @@ const closeNewChatModal = () => {
       size="md"
       @close="closeNewChatModal"
     >
-      <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div class="modal-form">
         <select
           v-model="newChatForm.instanceId"
-          class="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+          class="form-input"
         >
           <option value="" disabled>Selecione a instância</option>
           <option v-for="instance in instances" :key="instance.id" :value="String(instance.id)">
@@ -437,41 +466,559 @@ const closeNewChatModal = () => {
           v-model="newChatForm.contactPhone"
           type="text"
           placeholder="Telefone do contato (com DDI)"
-          class="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+          class="form-input"
         />
 
         <input
           v-model="newChatForm.contactName"
           type="text"
           placeholder="Nome do contato (opcional)"
-          class="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+          class="form-input"
         />
 
         <input
           v-model="newChatForm.firstMessage"
           type="text"
           placeholder="Primeira mensagem (opcional)"
-          class="rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:focus:ring-emerald-900/30"
+          class="form-input"
         />
       </div>
 
       <template #footer>
         <button
           type="button"
-          class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          class="btn-cancel"
           @click="closeNewChatModal"
         >
           Cancelar
         </button>
         <button
           type="button"
-          class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          class="gradient-btn"
           :disabled="creatingTicket"
           @click="createChat"
         >
+          <div v-if="creatingTicket" class="spinner-sm"></div>
           {{ creatingTicket ? 'Iniciando...' : 'Iniciar conversa' }}
         </button>
       </template>
     </UiModal>
   </div>
 </template>
+
+<style scoped>
+.tickets-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fade-in 0.6s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .page-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.header-actions {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .header-actions {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .search-wrapper {
+    width: 24rem;
+  }
+}
+
+.search-icon {
+  position: absolute;
+  inset-y: 0;
+  left: 0.75rem;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.25rem;
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.search-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.gradient-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--gradient-brand);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.gradient-btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.gradient-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.gradient-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-new-chat {
+  white-space: nowrap;
+}
+
+.loading-card {
+  padding: 2rem;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(var(--v-theme-primary), 0.2);
+  border-top-color: rgb(var(--v-theme-primary));
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.glass {
+  background: var(--glass-background);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-lg);
+}
+
+.tickets-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.25rem;
+  border: 2px dashed rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  text-align: center;
+}
+
+.empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.ticket-card {
+  padding: 1rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.15);
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+  animation: slide-up 0.5s ease-out backwards;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ticket-card:hover {
+  border-color: rgba(var(--v-border-color), 0.3);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.ticket-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .ticket-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.ticket-info {
+  width: 100%;
+}
+
+.ticket-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin-bottom: 0.25rem;
+}
+
+.ticket-meta {
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-bottom: 0.25rem;
+}
+
+.ticket-time {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  margin-top: 0.25rem;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-md);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle:hover {
+  background: rgba(var(--v-theme-surface), 0.8);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+  box-shadow: var(--shadow-sm);
+}
+
+.conversation-panel {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(var(--v-theme-background), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-lg);
+}
+
+.messages-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.messages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.no-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+  text-align: center;
+}
+
+.message-bubble {
+  max-width: 85%;
+  padding: 0.75rem;
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  animation: message-pop 0.3s ease-out;
+}
+
+@keyframes message-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.message-inbound {
+  align-self: flex-start;
+  background: rgba(var(--v-theme-surface), 0.8);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.message-outbound {
+  align-self: flex-end;
+  margin-left: auto;
+  background: var(--gradient-brand);
+  color: white;
+}
+
+.message-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.message-meta {
+  margin-top: 0.25rem;
+  font-size: 0.6875rem;
+  opacity: 0.7;
+}
+
+.reply-section {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.reply-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.reply-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.reply-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.btn-send {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.ticket-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-open {
+  background: rgba(var(--color-primary-500), 0.15);
+  color: var(--color-primary-700);
+}
+
+.status-pending {
+  background: rgba(var(--color-warning-500), 0.15);
+  color: var(--color-warning-700);
+}
+
+.status-progress {
+  background: rgba(var(--color-success-500), 0.15);
+  color: var(--color-success-700);
+}
+
+.status-resolved {
+  background: rgba(var(--color-accent-500), 0.15);
+  color: var(--color-accent-700);
+}
+
+.status-closed {
+  background: rgba(var(--v-theme-on-surface), 0.1);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.status-select {
+  padding: 0.25rem 0.5rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-select:hover:not(:disabled) {
+  border-color: rgba(var(--v-theme-primary), 0.4);
+}
+
+.status-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .modal-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.form-input {
+  padding: 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.form-input::placeholder {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.form-input:focus {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.1);
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: var(--border-radius-lg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: rgba(var(--v-theme-surface), 0.5);
+  border-color: rgba(var(--v-border-color), 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background: rgba(18, 18, 18, 0.7);
+  }
+
+  .ticket-card {
+    background: rgba(30, 30, 30, 0.5);
+  }
+}
+</style>
