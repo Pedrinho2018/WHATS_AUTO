@@ -213,7 +213,7 @@ services:
   # ─── Typebot Builder (Construtor Visual) ────────────────────────
   typebot-builder:
     profiles: ["typebot"]
-    image: baptiste-arnaud/typebot-builder:latest
+    image: baptistearno/typebot-builder:latest
     container_name: typebot_builder
     restart: unless-stopped
     environment:
@@ -240,7 +240,7 @@ services:
   # ─── Typebot Viewer (Motor de Chat) ─────────────────────────────
   typebot-viewer:
     profiles: ["typebot"]
-    image: baptiste-arnaud/typebot-viewer:latest
+    image: baptistearno/typebot-viewer:latest
     container_name: typebot_viewer
     restart: unless-stopped
     environment:
