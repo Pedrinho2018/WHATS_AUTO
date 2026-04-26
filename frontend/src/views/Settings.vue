@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/auth'
-import { UiCard, UiSectionHeader } from '../components/ui'
+import { UiSectionHeader } from '../components/ui'
 
 const authStore = useAuthStore()
 
