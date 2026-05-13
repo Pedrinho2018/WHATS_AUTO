@@ -1,283 +1,51 @@
-# ═══════════════════════════════════════════════════════════════
-# Norte MT Sistemas - CD Pipeline
-# Deploy to Production
-# ═══════════════════════════════════════════════════════════════
-
-name: CD
+name: Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Environment to deploy'
+      app_url:
+        description: "URL para testar depois do deploy"
         required: true
-        default: 'production'
-        type: choice
-        options:
-          - staging
-          - production
+        default: "http://localhost"
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
-  IMAGE_NAME_FRONTEND: ${{ github.repository }}-frontend
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  # ─── Build & Push Docker Images ───────────────────────────────
-  build:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    outputs:
-      backend_image: ${{ steps.meta-backend.outputs.tags }}
-      frontend_image: ${{ steps.meta-frontend.outputs.tags }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Backend
-      - name: Extract metadata (Backend)
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Frontend
-      - name: Extract metadata (Frontend)
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ─── Deploy to Server ─────────────────────────────────────────
   deploy:
-    name: Deploy to Production
+    name: Deploy via SSH
     runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: https://nortemtsistemas.com.br
-    
-    outputs:
-      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
-      previous_commit: ${{ steps.deploy.outputs.previous_commit }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Save Previous Commit
-        id: deploy
-        run: |
-          echo "deployment_id=$(date +%s)" >> $GITHUB_OUTPUT
-          echo "previous_commit=$(git rev-parse HEAD~1)" >> $GITHUB_OUTPUT
-
-      - name: Deploy to Server
-        id: deploy_step
+      - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/whatsauto
-            
-            # Backup current state for rollback
-            docker compose ps > /tmp/compose_state_before.txt
-            git rev-parse HEAD > /tmp/commit_before.txt
-            
-            # Pull latest images
-            docker compose pull
-            
-            # Restart services
-            docker compose up -d --remove-orphans
-            
-            # Clean up old images
-            docker image prune -f
-            
-            # Wait for services to be ready
-            sleep 15
+            set -e
 
-      - name: Run Smoke Tests
-        id: smoke_tests
+            cd "${{ secrets.SERVER_PATH || '/opt/whatsauto' }}"
+
+            git fetch --all --prune
+            git checkout main
+            git pull --ff-only origin main
+
+            if [ ! -f .env.simple ]; then
+              echo "Arquivo .env.simple nao encontrado no servidor."
+              echo "Crie a partir de .env.simple.example antes de rodar o deploy."
+              exit 1
+            fi
+
+            docker compose --env-file .env.simple -f docker-compose.simple.yml up -d --build --remove-orphans
+            docker compose --env-file .env.simple -f docker-compose.simple.yml ps
+
+      - name: Smoke test
         run: |
           chmod +x .github/scripts/smoke-tests.sh
-          .github/scripts/smoke-tests.sh "https://api.nortemtsistemas.com.br"
-
-      - name: Notify Success on Slack
-        if: success()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "✅ Deploy para Produção Bem-sucedido",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*✅ Deploy para Produção Bem-sucedido*\n*Commit:* ${{ github.sha }}\n*Branch:* main\n*URL:* https://nortemtsistemas.com.br\n*Status:* Todos os smoke tests passaram ✓"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Ver Deploy"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    },
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Abrir Aplicação"
-                      },
-                      "url": "https://nortemtsistemas.com.br"
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
-
-      - name: Rollback on Failure
-        if: failure() && steps.deploy_step.outcome == 'success'
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /opt/whatsauto
-            
-            echo "🔄 Iniciando rollback automático..."
-            
-            # Stop current containers
-            docker compose down
-            
-            # Remove failed images
-            docker image rm $(docker image ls -q ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}) 2>/dev/null || true
-            
-            # Restore previous state from backup
-            if [ -f /tmp/compose_state_before.txt ]; then
-              echo "🔄 Restaurando estado anterior..."
-              # Pull and run previous stable images
-              docker compose pull 2>/dev/null || true
-            fi
-            
-            # Restart with last known good state
-            docker compose up -d --remove-orphans
-            
-            # Wait for services
-            sleep 20
-            
-            # Verify rollback (retry logic)
-            max_retries=5
-            retry=0
-            while [ $retry -lt $max_retries ]; do
-              if curl -f --connect-timeout 5 --max-time 10 https://api.nortemtsistemas.com.br/health > /dev/null 2>&1; then
-                echo "✅ Rollback concluído com sucesso"
-                docker image prune -f 2>/dev/null || true
-                exit 0
-              fi
-              retry=$((retry + 1))
-              if [ $retry -lt $max_retries ]; then
-                echo "⏳ Verificando health check (retry $retry/$max_retries)..."
-                sleep 5
-              fi
-            done
-            
-            echo "❌ Falha no rollback - serviço não respondeu"
-            exit 1
-
-      - name: Notify Failure on Slack
-        if: failure()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          payload: |
-            {
-              "text": "❌ Deploy para Produção Falhou",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*❌ Deploy para Produção Falhou*\n*Commit:* ${{ github.sha }}\n*Branch:* main\n*Status:* Rollback automático foi acionado"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Motivo da Falha:*\n${{ job.status }}\n\nVerifique os logs para mais detalhes."
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "Ver Logs"
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
+          .github/scripts/smoke-tests.sh "${{ github.event.inputs.app_url }}"
