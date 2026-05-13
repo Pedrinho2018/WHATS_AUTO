@@ -2,12 +2,15 @@ import { readonly, ref } from 'vue'
 import { io, type Socket } from 'socket.io-client'
 import { appConfig } from '../config/runtime'
 
+type RealtimeTicketPayload = { ticket: Record<string, unknown>; timestamp: string }
+type RealtimeMessagePayload = { message: Record<string, unknown>; timestamp: string }
+
 type ServerToClientEvents = {
   'server:welcome': (payload: { message: string; timestamp: string }) => void
   'server:pong': (payload: { timestamp: string }) => void
-  'server:ticket.created': (payload: { ticket: Record<string, unknown>; timestamp: string }) => void
-  'server:ticket.updated': (payload: { ticket: Record<string, unknown>; timestamp: string }) => void
-  'server:message.created': (payload: { message: Record<string, unknown>; timestamp: string }) => void
+  'server:ticket.created': (payload: RealtimeTicketPayload) => void
+  'server:ticket.updated': (payload: RealtimeTicketPayload) => void
+  'server:message.created': (payload: RealtimeMessagePayload) => void
 }
 
 type ClientToServerEvents = {
@@ -131,6 +134,21 @@ export const subscribeTicketRoom = (ticketId: number): void => {
   }
 
   socket.emit('client:join-ticket', { ticketId })
+}
+
+export const onTicketCreated = (handler: (payload: RealtimeTicketPayload) => void): (() => void) => {
+  socket.on('server:ticket.created', handler)
+  return () => socket.off('server:ticket.created', handler)
+}
+
+export const onTicketUpdated = (handler: (payload: RealtimeTicketPayload) => void): (() => void) => {
+  socket.on('server:ticket.updated', handler)
+  return () => socket.off('server:ticket.updated', handler)
+}
+
+export const onMessageCreated = (handler: (payload: RealtimeMessagePayload) => void): (() => void) => {
+  socket.on('server:message.created', handler)
+  return () => socket.off('server:message.created', handler)
 }
 
 export const useSocketState = () => {

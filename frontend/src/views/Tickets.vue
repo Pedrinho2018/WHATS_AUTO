@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { toast } from 'vue3-toastify'
 import api from '../services/api'
 import type { AxiosError } from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { UiCard, UiModal, UiSectionHeader } from '../components/ui'
+import { onMessageCreated, onTicketCreated, onTicketUpdated } from '../services/socket'
 
 interface Ticket {
   id: number
@@ -121,6 +122,46 @@ const setSendingMessage = (ticketId: number, value: boolean) => {
   sendingMessageByTicketId.value = {
     ...sendingMessageByTicketId.value,
     [ticketId]: value,
+  }
+}
+
+const toTicketMessage = (raw: Record<string, unknown>): TicketMessage | null => {
+  const id = Number(raw.id)
+
+  if (!Number.isFinite(id)) {
+    return null
+  }
+
+  return {
+    id,
+    direction: raw.direction === 'outbound' ? 'outbound' : 'inbound',
+    content: typeof raw.content === 'string' ? raw.content : undefined,
+    status: ['sent', 'delivered', 'read', 'failed'].includes(String(raw.status))
+      ? (raw.status as TicketMessage['status'])
+      : 'delivered',
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : undefined,
+  }
+}
+
+const upsertTicketMessage = (ticketId: number, message: TicketMessage) => {
+  const currentMessages = messagesByTicketId.value[ticketId]
+
+  if (!currentMessages) {
+    return
+  }
+
+  const messageIndex = currentMessages.findIndex((item) => item.id === message.id)
+  const nextMessages = [...currentMessages]
+
+  if (messageIndex >= 0) {
+    nextMessages[messageIndex] = message
+  } else {
+    nextMessages.push(message)
+  }
+
+  messagesByTicketId.value = {
+    ...messagesByTicketId.value,
+    [ticketId]: nextMessages,
   }
 }
 
@@ -277,8 +318,36 @@ const handleStatusChange = (ticketId: number, event: Event) => {
   updateStatus(ticketId, target.value as Ticket['status'])
 }
 
+const handleRealtimeMessageCreated = async (payload: { message: Record<string, unknown> }) => {
+  const ticketId = Number(payload.message.ticket_id)
+  const message = toTicketMessage(payload.message)
+
+  if (!Number.isFinite(ticketId) || !message) {
+    return
+  }
+
+  upsertTicketMessage(ticketId, message)
+  await loadTickets()
+}
+
 onMounted(async () => {
   await Promise.all([loadTickets(), loadInstances()])
+})
+
+const cleanupRealtimeListeners = [
+  onTicketCreated(() => {
+    void loadTickets()
+  }),
+  onTicketUpdated(() => {
+    void loadTickets()
+  }),
+  onMessageCreated((payload) => {
+    void handleRealtimeMessageCreated(payload)
+  }),
+]
+
+onUnmounted(() => {
+  cleanupRealtimeListeners.forEach((cleanup) => cleanup())
 })
 
 const openNewChatModal = () => {
