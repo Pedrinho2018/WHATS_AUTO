@@ -1,6 +1,6 @@
 import { Op, QueryTypes } from 'sequelize';
 import DomainError from '../core/errors/domain.error';
-import { Flow, FlowWorkspace, Instance, Ticket, User, MessageTemplate, sequelize } from '../models';
+import { Flow, FlowWorkspace, Instance, Message, Ticket, TicketAudit, User, MessageTemplate, sequelize } from '../models';
 import revolutionService from './revolution.service';
 import logger from '../utils';
 
@@ -16,9 +16,19 @@ export interface DashboardSummary {
   openTickets: number;
   resolvedToday: number;
   avgResponseTime: string;
+  messagesToday: number;
+  inboundMessagesToday: number;
+  outboundMessagesToday: number;
   totalInstances: number;
+  connectedInstances: number;
   activeFlows: number;
   totalAgents: number;
+  ticketsByAgent: Array<{
+    agentId: number | null;
+    agentName: string;
+    openTickets: number;
+    resolvedToday: number;
+  }>;
 }
 
 export interface CreateUserInput {
@@ -110,6 +120,11 @@ export interface TransferTicketInput {
   status?: TicketStatus;
 }
 
+export interface TicketAuditActor {
+  id?: number;
+  name?: string;
+}
+
 class ManagementService {
   private normalizeRevolutionInstanceStatus(status: InstanceStatus, qrCode?: string, pairingCode?: string): InstanceStatus {
     if (status === 'error' && (qrCode || pairingCode)) {
@@ -176,21 +191,71 @@ class ManagementService {
     return safeUser;
   }
 
+  private async createTicketAudit(input: {
+    companyId: number;
+    ticketId: number;
+    actor?: TicketAuditActor;
+    action: 'created' | 'status_changed' | 'transferred' | 'message_sent';
+    previousValue?: string;
+    newValue?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    await TicketAudit.create({
+      company_id: input.companyId,
+      ticket_id: input.ticketId,
+      actor_user_id: input.actor?.id,
+      actor_name: input.actor?.name,
+      action: input.action,
+      previous_value: input.previousValue,
+      new_value: input.newValue,
+      metadata: input.metadata,
+    });
+  }
+
   async getDashboard(companyId: number): Promise<DashboardSummary> {
     const summary = await sequelize.query<{
       totalTickets: number;
       openTickets: number;
       resolvedToday: number;
+      messagesToday: number;
+      inboundMessagesToday: number;
+      outboundMessagesToday: number;
+      avgResponseSeconds: number | null;
       totalInstances: number;
+      connectedInstances: number;
       activeFlows: number;
       totalAgents: number;
     }>(
       `
       SELECT
-        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId) AS totalTickets,
-        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId AND status IN ('open', 'pending', 'in_progress')) AS openTickets,
-        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId AND status = 'resolved') AS resolvedToday,
-        (SELECT COUNT(*) FROM instances WHERE company_id = :companyId) AS totalInstances,
+        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId AND deleted_at IS NULL) AS totalTickets,
+        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId AND deleted_at IS NULL AND status IN ('open', 'pending', 'in_progress')) AS openTickets,
+        (SELECT COUNT(*) FROM tickets WHERE company_id = :companyId AND deleted_at IS NULL AND status = 'resolved' AND DATE(updated_at) = CURRENT_DATE()) AS resolvedToday,
+        (SELECT COUNT(*) FROM messages WHERE company_id = :companyId AND DATE(created_at) = CURRENT_DATE()) AS messagesToday,
+        (SELECT COUNT(*) FROM messages WHERE company_id = :companyId AND direction = 'inbound' AND DATE(created_at) = CURRENT_DATE()) AS inboundMessagesToday,
+        (SELECT COUNT(*) FROM messages WHERE company_id = :companyId AND direction = 'outbound' AND DATE(created_at) = CURRENT_DATE()) AS outboundMessagesToday,
+        (
+          SELECT AVG(TIMESTAMPDIFF(SECOND, first_inbound.created_at, first_outbound.created_at))
+          FROM (
+            SELECT ticket_id, MIN(created_at) AS created_at
+            FROM messages
+            WHERE company_id = :companyId AND direction = 'inbound'
+            GROUP BY ticket_id
+          ) first_inbound
+          INNER JOIN (
+            SELECT inbound.ticket_id, MIN(outbound.created_at) AS created_at
+            FROM messages inbound
+            INNER JOIN messages outbound
+              ON outbound.ticket_id = inbound.ticket_id
+              AND outbound.company_id = inbound.company_id
+              AND outbound.direction = 'outbound'
+              AND outbound.created_at > inbound.created_at
+            WHERE inbound.company_id = :companyId AND inbound.direction = 'inbound'
+            GROUP BY inbound.ticket_id
+          ) first_outbound ON first_outbound.ticket_id = first_inbound.ticket_id
+        ) AS avgResponseSeconds,
+        (SELECT COUNT(*) FROM instances WHERE company_id = :companyId AND deleted_at IS NULL) AS totalInstances,
+        (SELECT COUNT(*) FROM instances WHERE company_id = :companyId AND deleted_at IS NULL AND status = 'connected') AS connectedInstances,
         (SELECT COUNT(*) FROM flows WHERE company_id = :companyId AND is_active = true) AS activeFlows,
         (SELECT COUNT(*) FROM users WHERE company_id = :companyId AND role IN ('agent', 'manager') AND is_active = true) AS totalAgents
       `,
@@ -201,14 +266,54 @@ class ManagementService {
       }
     );
 
+    const ticketsByAgent = await sequelize.query<{
+      agentId: number | null;
+      agentName: string | null;
+      openTickets: number;
+      resolvedToday: number;
+    }>(
+      `
+      SELECT
+        u.id AS agentId,
+        COALESCE(u.name, 'Sem responsavel') AS agentName,
+        SUM(CASE WHEN t.status IN ('open', 'pending', 'in_progress') THEN 1 ELSE 0 END) AS openTickets,
+        SUM(CASE WHEN t.status = 'resolved' AND DATE(t.updated_at) = CURRENT_DATE() THEN 1 ELSE 0 END) AS resolvedToday
+      FROM tickets t
+      LEFT JOIN users u ON u.id = t.user_id
+      WHERE t.company_id = :companyId AND t.deleted_at IS NULL
+      GROUP BY u.id, u.name
+      ORDER BY openTickets DESC, resolvedToday DESC, agentName ASC
+      LIMIT 8
+      `,
+      {
+        replacements: { companyId },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    const avgResponseSeconds = Number(summary?.avgResponseSeconds || 0);
+    const avgResponseTime = avgResponseSeconds > 0
+      ? `${Math.max(1, Math.round(avgResponseSeconds / 60))}min`
+      : 'Sem dados';
+
     return {
       totalTickets: Number(summary?.totalTickets || 0),
       openTickets: Number(summary?.openTickets || 0),
       resolvedToday: Number(summary?.resolvedToday || 0),
-      avgResponseTime: '5min',
+      avgResponseTime,
+      messagesToday: Number(summary?.messagesToday || 0),
+      inboundMessagesToday: Number(summary?.inboundMessagesToday || 0),
+      outboundMessagesToday: Number(summary?.outboundMessagesToday || 0),
       totalInstances: Number(summary?.totalInstances || 0),
+      connectedInstances: Number(summary?.connectedInstances || 0),
       activeFlows: Number(summary?.activeFlows || 0),
       totalAgents: Number(summary?.totalAgents || 0),
+      ticketsByAgent: ticketsByAgent.map((agent) => ({
+        agentId: agent.agentId ? Number(agent.agentId) : null,
+        agentName: agent.agentName || 'Sem responsavel',
+        openTickets: Number(agent.openTickets || 0),
+        resolvedToday: Number(agent.resolvedToday || 0),
+      })),
     };
   }
 
@@ -417,7 +522,7 @@ class ManagementService {
     });
   }
 
-  async createTicket(companyId: number, input: CreateTicketInput): Promise<Ticket> {
+  async createTicket(companyId: number, input: CreateTicketInput, actor?: TicketAuditActor): Promise<Ticket> {
     const { instance_id, user_id, contact_phone, contact_name, status, priority, tags } = input;
 
     if (!instance_id || !contact_phone) {
@@ -444,16 +549,30 @@ class ManagementService {
       status: ticket.status,
     });
 
+    await this.createTicketAudit({
+      companyId,
+      ticketId: ticket.id,
+      actor,
+      action: 'created',
+      newValue: ticket.status,
+      metadata: {
+        contactPhone: ticket.contact_phone,
+        instanceId: ticket.instance_id,
+      },
+    });
+
     return ticket;
   }
 
-  async updateTicket(companyId: number, ticketId: number, input: UpdateTicketInput): Promise<Ticket> {
+  async updateTicket(companyId: number, ticketId: number, input: UpdateTicketInput, actor?: TicketAuditActor): Promise<Ticket> {
     const ticket = await Ticket.findOne({ where: { id: ticketId, company_id: companyId } });
     if (!ticket) {
       throw new DomainError('Conversa nao encontrada', 404);
     }
 
     const { user_id, status, priority, tags, metadata } = input;
+    const previousStatus = ticket.status;
+    const previousUserId = ticket.user_id;
 
     await ticket.update({
       user_id: user_id ?? ticket.user_id,
@@ -463,6 +582,28 @@ class ManagementService {
       metadata: metadata ? { ...(ticket.metadata || {}), ...metadata } : ticket.metadata,
     });
 
+    if (status && status !== previousStatus) {
+      await this.createTicketAudit({
+        companyId,
+        ticketId,
+        actor,
+        action: 'status_changed',
+        previousValue: previousStatus,
+        newValue: status,
+      });
+    }
+
+    if (typeof user_id === 'number' && user_id !== previousUserId) {
+      await this.createTicketAudit({
+        companyId,
+        ticketId,
+        actor,
+        action: 'transferred',
+        previousValue: previousUserId ? String(previousUserId) : 'sem_responsavel',
+        newValue: String(user_id),
+      });
+    }
+
     logger.info('Conversa atualizada', {
       companyId,
       ticketId,
@@ -471,6 +612,20 @@ class ManagementService {
     });
 
     return ticket;
+  }
+
+  async listTicketAudit(companyId: number, ticketId: number): Promise<TicketAudit[]> {
+    const ticket = await Ticket.findOne({ where: { id: ticketId, company_id: companyId } });
+    if (!ticket) {
+      throw new DomainError('Conversa nao encontrada', 404);
+    }
+
+    return TicketAudit.findAll({
+      where: { company_id: companyId, ticket_id: ticketId },
+      include: [{ model: User, as: 'actor', attributes: ['id', 'name', 'email'] }],
+      order: [['created_at', 'DESC']],
+      limit: 100,
+    });
   }
 
   async listFlows(companyId: number): Promise<Flow[]> {
@@ -642,7 +797,7 @@ class ManagementService {
   }
 
   // ─── Métodos de Transferência de Tickets ───────────────────────
-  async transferTicket(companyId: number, ticketId: number, input: TransferTicketInput): Promise<Ticket> {
+  async transferTicket(companyId: number, ticketId: number, input: TransferTicketInput, actor?: TicketAuditActor): Promise<Ticket> {
     const ticket = await Ticket.findOne({ where: { id: ticketId, company_id: companyId } });
     if (!ticket) {
       throw new DomainError('Conversa não encontrada', 404);
@@ -659,11 +814,37 @@ class ManagementService {
     }
 
     const previousUserId = ticket.user_id;
+    const previousStatus = ticket.status;
 
     await ticket.update({
       user_id: user_id ?? ticket.user_id,
       status: status ?? ticket.status,
     });
+
+    if (user_id && user_id !== previousUserId) {
+      await this.createTicketAudit({
+        companyId,
+        ticketId,
+        actor,
+        action: 'transferred',
+        previousValue: previousUserId ? String(previousUserId) : 'sem_responsavel',
+        newValue: String(user_id),
+        metadata: {
+          status: ticket.status,
+        },
+      });
+    }
+
+    if (status && status !== previousStatus) {
+      await this.createTicketAudit({
+        companyId,
+        ticketId,
+        actor,
+        action: 'status_changed',
+        previousValue: previousStatus,
+        newValue: status,
+      });
+    }
 
     logger.info('Conversa transferida', {
       companyId,

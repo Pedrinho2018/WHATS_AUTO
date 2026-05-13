@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import dayjs from 'dayjs'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { UiCard, UiSectionHeader } from '../components/ui'
@@ -12,6 +13,8 @@ interface Instance {
   status: 'connected' | 'disconnected' | 'connecting' | 'error'
   qr_code?: string
   pairing_code?: string
+  last_connected_at?: string
+  updated_at?: string
 }
 
 const authStore = useAuthStore()
@@ -35,6 +38,31 @@ const statusLabel: Record<Instance['status'], string> = {
   disconnected: 'Desconectado',
   connecting: 'Conectando',
   error: 'Erro',
+}
+
+const statusDescription: Record<Instance['status'], string> = {
+  connected: 'Número pronto para enviar e receber mensagens.',
+  disconnected: 'Número sem sessão ativa. Gere um QR Code para conectar.',
+  connecting: 'Aguardando leitura do QR Code ou pareamento.',
+  error: 'A instância precisa de atenção antes de operar.',
+}
+
+const statusSummary = computed(() => {
+  const total = instances.value.length
+  const connected = instances.value.filter((instance) => instance.status === 'connected').length
+  const connecting = instances.value.filter((instance) => instance.status === 'connecting').length
+  const disconnected = instances.value.filter((instance) => instance.status === 'disconnected').length
+  const error = instances.value.filter((instance) => instance.status === 'error').length
+
+  return { total, connected, connecting, disconnected, error }
+})
+
+const formatDateTime = (value?: string): string => {
+  return value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'Sem registro'
+}
+
+const getLastSyncLabel = (instance: Instance): string => {
+  return formatDateTime(instance.updated_at || instance.last_connected_at)
 }
 
 const normalizeStatus = (value: unknown): Instance['status'] => {
@@ -233,6 +261,29 @@ onMounted(async () => {
   <div class="instances-page">
     <UiSectionHeader title="Instancias WhatsApp" subtitle="Gerencie conexoes e disponibilidade dos numeros." />
 
+    <div class="status-overview">
+      <div class="overview-tile glass">
+        <span class="overview-label">Total</span>
+        <strong>{{ statusSummary.total }}</strong>
+      </div>
+      <div class="overview-tile glass overview-connected">
+        <span class="overview-label">Conectadas</span>
+        <strong>{{ statusSummary.connected }}</strong>
+      </div>
+      <div class="overview-tile glass overview-connecting">
+        <span class="overview-label">Pareando</span>
+        <strong>{{ statusSummary.connecting }}</strong>
+      </div>
+      <div class="overview-tile glass overview-disconnected">
+        <span class="overview-label">Desconectadas</span>
+        <strong>{{ statusSummary.disconnected }}</strong>
+      </div>
+      <div class="overview-tile glass overview-error">
+        <span class="overview-label">Com erro</span>
+        <strong>{{ statusSummary.error }}</strong>
+      </div>
+    </div>
+
     <div v-if="canManage" class="create-instance-card glass">
       <h2 class="card-title gradient-text">Conectar novo numero</h2>
       <div class="form-grid">
@@ -289,6 +340,7 @@ onMounted(async () => {
               ></span>
               <span class="status-label">{{ statusLabel[instance.status] }}</span>
             </div>
+            <p class="status-description">{{ statusDescription[instance.status] }}</p>
           </div>
           <span 
             class="status-badge"
@@ -315,6 +367,18 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
             <span class="detail-text">{{ instance.phone || 'Sem telefone configurado' }}</span>
+          </div>
+          <div class="detail-row">
+            <svg class="icon-sm text-medium-emphasis" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="detail-text">Última sincronização: {{ getLastSyncLabel(instance) }}</span>
+          </div>
+          <div class="detail-row">
+            <svg class="icon-sm text-medium-emphasis" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span class="detail-text">Última conexão: {{ formatDateTime(instance.last_connected_at) }}</span>
           </div>
         </div>
 
@@ -414,6 +478,51 @@ onMounted(async () => {
 
 .create-instance-card {
   padding: 1.5rem;
+}
+
+.status-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .status-overview {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.overview-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 5.5rem;
+  padding: 1rem;
+}
+
+.overview-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+}
+
+.overview-tile strong {
+  font-size: 1.75rem;
+  line-height: 1;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.overview-connected {
+  border-color: rgba(var(--v-theme-success), 0.35);
+}
+
+.overview-connecting {
+  border-color: rgba(var(--v-theme-primary), 0.35);
+}
+
+.overview-disconnected,
+.overview-error {
+  border-color: rgba(var(--v-theme-warning), 0.35);
 }
 
 .card-title {
@@ -621,6 +730,13 @@ onMounted(async () => {
 .status-label {
   font-size: 0.875rem;
   color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.status-description {
+  max-width: 28rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: rgba(var(--v-theme-on-surface), 0.58);
 }
 
 .status-badge {

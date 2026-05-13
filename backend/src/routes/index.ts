@@ -116,6 +116,7 @@ routes.get('/tickets', managementController.listTickets.bind(managementControlle
 routes.get('/tickets/history/:contactPhone', managementController.listTicketHistory.bind(managementController));
 routes.post('/tickets', managementController.createTicket.bind(managementController));
 routes.patch('/tickets/:id', managementController.updateTicket.bind(managementController));
+routes.get('/tickets/:id/audit', managementController.listTicketAudit.bind(managementController));
 routes.post('/tickets/:id/transfer', roleMiddleware('admin', 'manager', 'agent'), managementController.transferTicket.bind(managementController));
 routes.get('/messages/tickets/:ticketId', messagesController.listTicketMessages.bind(messagesController));
 routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager', 'agent', 'viewer'), messagesController.sendTextToTicket.bind(messagesController));

@@ -47,7 +47,8 @@ class MessagesController {
         companyId,
         ticketId,
         operatorName,
-        text
+        text,
+        req.user?.id
       );
 
       res.status(201).json({

@@ -9,9 +9,19 @@ const stats = ref({
   openTickets: 0,
   resolvedToday: 0,
   avgResponseTime: '0min',
+  messagesToday: 0,
+  inboundMessagesToday: 0,
+  outboundMessagesToday: 0,
   totalInstances: 0,
+  connectedInstances: 0,
   activeFlows: 0,
   totalAgents: 0,
+  ticketsByAgent: [] as Array<{
+    agentId: number | null
+    agentName: string
+    openTickets: number
+    resolvedToday: number
+  }>,
 })
 
 const loading = ref(true)
@@ -26,18 +36,18 @@ const realtimeColor = computed(() => (isConnected.value ? 'success' : 'error'))
 
 const metricCards = computed(() => [
   {
-    label: 'Conversas',
-    value: stats.value.totalTickets,
+    label: 'Conversas abertas',
+    value: stats.value.openTickets,
     icon: 'mdi-message-text-outline',
-    color: 'primary',
-    detail: 'Total registrado',
+    color: 'warning',
+    detail: 'Em atendimento ou aguardando',
   },
   {
-    label: 'Abertas',
-    value: stats.value.openTickets,
-    icon: 'mdi-account-clock-outline',
-    color: 'warning',
-    detail: 'Demandam atenção',
+    label: 'Mensagens hoje',
+    value: stats.value.messagesToday,
+    icon: 'mdi-forum-outline',
+    color: 'primary',
+    detail: `${stats.value.inboundMessagesToday} recebidas / ${stats.value.outboundMessagesToday} enviadas`,
   },
   {
     label: 'Resolvidas hoje',
@@ -58,7 +68,7 @@ const metricCards = computed(() => [
 const operationCards = computed(() => [
   {
     label: 'Instancias',
-    value: stats.value.totalInstances,
+    value: `${stats.value.connectedInstances}/${stats.value.totalInstances}`,
     icon: 'mdi-whatsapp',
     color: 'success',
   },
@@ -84,9 +94,14 @@ onMounted(async () => {
       openTickets: data.openTickets || 0,
       resolvedToday: data.resolvedToday || 0,
       avgResponseTime: data.avgResponseTime || '0min',
+      messagesToday: data.messagesToday || 0,
+      inboundMessagesToday: data.inboundMessagesToday || 0,
+      outboundMessagesToday: data.outboundMessagesToday || 0,
       totalInstances: data.totalInstances || 0,
+      connectedInstances: data.connectedInstances || 0,
       activeFlows: data.activeFlows || 0,
       totalAgents: data.totalAgents || 0,
+      ticketsByAgent: Array.isArray(data.ticketsByAgent) ? data.ticketsByAgent : [],
     }
     lastUpdatedAt.value = dayjs().format('DD/MM/YYYY HH:mm')
   } finally {
@@ -141,7 +156,7 @@ onMounted(async () => {
       <v-row class="mt-2" dense>
         <v-col cols="12" lg="8">
           <v-card border elevation="0">
-            <v-card-title class="section-title">Operacao</v-card-title>
+            <v-card-title class="section-title">Operacao comercial</v-card-title>
             <v-card-text>
               <v-row dense>
                 <v-col v-for="card in operationCards" :key="card.label" cols="12" sm="4">
@@ -154,6 +169,33 @@ onMounted(async () => {
                   </div>
                 </v-col>
               </v-row>
+            </v-card-text>
+          </v-card>
+
+          <v-card border class="mt-4" elevation="0">
+            <v-card-title class="section-title">Atendimentos por operador</v-card-title>
+            <v-card-text>
+              <div v-if="stats.ticketsByAgent.length === 0" class="empty-panel">
+                Nenhum atendimento atribuído ainda.
+              </div>
+              <div v-else class="agent-list">
+                <div v-for="agent in stats.ticketsByAgent" :key="agent.agentId ?? 'unassigned'" class="agent-row">
+                  <div>
+                    <div class="agent-name">{{ agent.agentName }}</div>
+                    <div class="text-caption text-medium-emphasis">Responsável pela carteira de atendimento</div>
+                  </div>
+                  <div class="agent-metrics">
+                    <div>
+                      <span>Abertas</span>
+                      <strong>{{ agent.openTickets }}</strong>
+                    </div>
+                    <div>
+                      <span>Resolvidas hoje</span>
+                      <strong>{{ agent.resolvedToday }}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -249,6 +291,54 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+.agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+.agent-name {
+  font-weight: 700;
+}
+
+.agent-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.agent-metrics div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.agent-metrics span {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+}
+
+.agent-metrics strong {
+  font-size: 1.25rem;
+}
+
+.empty-panel {
+  padding: 18px;
+  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+}
+
 .status-row {
   display: flex;
   justify-content: space-between;
@@ -270,6 +360,19 @@ onMounted(async () => {
 
   .heading-actions {
     justify-content: flex-start;
+  }
+
+  .agent-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .agent-metrics {
+    width: 100%;
+  }
+
+  .agent-metrics div {
+    align-items: flex-start;
   }
 }
 </style>

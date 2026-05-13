@@ -37,6 +37,13 @@ class ManagementController {
     return value;
   }
 
+  private getAuditActor(req: AuthRequest): { id?: number; name?: string } {
+    return {
+      id: req.user?.id,
+      name: req.user?.name,
+    };
+  }
+
   async dashboard(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
@@ -177,7 +184,7 @@ class ManagementController {
   async createTicket(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
-      const ticket = await managementService.createTicket(companyId, req.body as CreateTicketInput);
+      const ticket = await managementService.createTicket(companyId, req.body as CreateTicketInput, this.getAuditActor(req));
       emitTicketCreated(ticket);
       res.status(201).json(ticket);
     } catch (error) {
@@ -190,12 +197,23 @@ class ManagementController {
     try {
       const companyId = this.requireCompanyId(req);
       const ticketId = this.parseIdParam(req.params.id);
-      const ticket = await managementService.updateTicket(companyId, ticketId, req.body as UpdateTicketInput);
+      const ticket = await managementService.updateTicket(companyId, ticketId, req.body as UpdateTicketInput, this.getAuditActor(req));
       emitTicketUpdated(ticket);
       res.json(ticket);
     } catch (error) {
       logger.error('Falha ao atualizar conversa', error);
       sendControllerError(res, error, 'Erro ao atualizar conversa');
+    }
+  }
+
+  async listTicketAudit(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const ticketId = this.parseIdParam(req.params.id);
+      const audits = await managementService.listTicketAudit(companyId, ticketId);
+      res.json(audits);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao listar auditoria da conversa');
     }
   }
 
@@ -283,7 +301,7 @@ class ManagementController {
     try {
       const companyId = this.requireCompanyId(req);
       const ticketId = this.parseIdParam(req.params.id);
-      const ticket = await managementService.transferTicket(companyId, ticketId, req.body as TransferTicketInput);
+      const ticket = await managementService.transferTicket(companyId, ticketId, req.body as TransferTicketInput, this.getAuditActor(req));
       emitTicketUpdated(ticket);
       res.json(ticket);
     } catch (error) {

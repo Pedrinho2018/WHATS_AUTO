@@ -1,5 +1,5 @@
 import DomainError from '../../core/errors/domain.error';
-import { Message } from '../../models';
+import { Message, TicketAudit } from '../../models';
 import { emitMessageCreated, emitTicketUpdated } from '../../realtime/events';
 import { MessageProviderPort } from './providers/message-provider.port';
 import {
@@ -44,7 +44,8 @@ export default class ConversationMessageApplication {
     companyId: number,
     ticketId: number,
     operatorName: string,
-    text: string
+    text: string,
+    operatorUserId?: number
   ): Promise<{ message: Message; provider: Record<string, unknown> }> {
     const ticket = await this.ticketRepository.findByIdAndCompany(ticketId, companyId);
     if (!ticket) {
@@ -82,6 +83,22 @@ export default class ConversationMessageApplication {
       );
 
       await this.ticketRepository.touchLastMessage(ticket, ticket.contact_name || undefined, tx);
+
+      await TicketAudit.create(
+        {
+          company_id: companyId,
+          ticket_id: ticket.id,
+          actor_user_id: operatorUserId,
+          actor_name: operatorName,
+          action: 'message_sent',
+          new_value: persisted.status,
+          metadata: {
+            messageId: persisted.id,
+            providerMessageId: outbound.messageId,
+          },
+        },
+        { transaction: tx }
+      );
 
       return persisted;
     });

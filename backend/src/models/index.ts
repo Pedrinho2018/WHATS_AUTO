@@ -8,6 +8,7 @@ import MessageTemplate from './MessageTemplate';
 import Flow from './Flow';
 import FlowWorkspace from './FlowWorkspace';
 import BotConfig from './BotConfig';
+import TicketAudit from './TicketAudit';
 
 // ═══════════════════════════════════════════════════════════════
 // Associações entre Models
@@ -37,6 +38,10 @@ Ticket.belongsTo(User, { foreignKey: 'user_id', as: 'agent' });
 Ticket.hasMany(Message, { foreignKey: 'ticket_id', as: 'messages' });
 Message.belongsTo(Ticket, { foreignKey: 'ticket_id', as: 'ticket' });
 
+// Ticket -> Audit trail (1:N)
+Ticket.hasMany(TicketAudit, { foreignKey: 'ticket_id', as: 'audits' });
+TicketAudit.belongsTo(Ticket, { foreignKey: 'ticket_id', as: 'ticket' });
+
 // Instance -> Messages (1:N)
 Instance.hasMany(Message, { foreignKey: 'instance_id', as: 'messages' });
 Message.belongsTo(Instance, { foreignKey: 'instance_id', as: 'instance' });
@@ -65,6 +70,14 @@ MessageTemplate.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 Company.hasMany(BotConfig, { foreignKey: 'company_id', as: 'bot_configs' });
 BotConfig.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 
+// Company -> TicketAudits (1:N)
+Company.hasMany(TicketAudit, { foreignKey: 'company_id', as: 'ticket_audits' });
+TicketAudit.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+// User -> TicketAudits (1:N)
+User.hasMany(TicketAudit, { foreignKey: 'actor_user_id', as: 'ticket_audits' });
+TicketAudit.belongsTo(User, { foreignKey: 'actor_user_id', as: 'actor' });
+
 export {
   sequelize,
   Company,
@@ -75,7 +88,8 @@ export {
   Message,
   Flow,
   FlowWorkspace,
-  BotConfig
+  BotConfig,
+  TicketAudit
 };
 
 export default {
@@ -88,5 +102,6 @@ export default {
   Message,
   Flow,
   FlowWorkspace,
-  BotConfig
+  BotConfig,
+  TicketAudit
 };
