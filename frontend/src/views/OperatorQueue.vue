@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { toast } from 'vue3-toastify'
 import api from '../services/api'
+import { onMessageCreated, onTicketCreated, onTicketUpdated } from '../services/socket'
 
 // ═══════════════════════════════════════════════════════════════
 // Tipos
@@ -165,9 +166,51 @@ const setSendingMessage = (ticketId: number, value: boolean) => {
   }
 }
 
-const loadTickets = async () => {
+const toTicketMessage = (raw: Record<string, unknown>): TicketMessage | null => {
+  const id = Number(raw.id)
+
+  if (!Number.isFinite(id)) {
+    return null
+  }
+
+  return {
+    id,
+    direction: raw.direction === 'outbound' ? 'outbound' : 'inbound',
+    content: typeof raw.content === 'string' ? raw.content : undefined,
+    status: ['sent', 'delivered', 'read', 'failed'].includes(String(raw.status))
+      ? (raw.status as TicketMessage['status'])
+      : 'delivered',
+    created_at: typeof raw.created_at === 'string' ? raw.created_at : undefined,
+  }
+}
+
+const upsertTicketMessage = (ticketId: number, message: TicketMessage) => {
+  const currentMessages = messagesByTicketId.value[ticketId]
+
+  if (!currentMessages) {
+    return
+  }
+
+  const messageIndex = currentMessages.findIndex((item) => item.id === message.id)
+  const nextMessages = [...currentMessages]
+
+  if (messageIndex >= 0) {
+    nextMessages[messageIndex] = message
+  } else {
+    nextMessages.push(message)
+  }
+
+  messagesByTicketId.value = {
+    ...messagesByTicketId.value,
+    [ticketId]: nextMessages,
+  }
+}
+
+const loadTickets = async (showLoading = true) => {
   try {
-    loading.value = true
+    if (showLoading) {
+      loading.value = true
+    }
     const { data } = await api.get('/tickets')
     tickets.value = data
   } catch (error) {
@@ -235,17 +278,21 @@ const sendMessage = async (ticketId: number) => {
 
   try {
     const { data } = await api.post(`/messages/tickets/${ticketId}/text`, {
-      content,
+      text: content,
     })
 
-    const messages = messagesByTicketId.value[ticketId] || []
-    messagesByTicketId.value = {
-      ...messagesByTicketId.value,
-      [ticketId]: [...messages, data],
+    const createdMessage = data?.message ? toTicketMessage(data.message as Record<string, unknown>) : null
+    if (createdMessage) {
+      upsertTicketMessage(ticketId, createdMessage)
     }
 
-    messageDraftByTicketId.value[ticketId] = ''
+    messageDraftByTicketId.value = {
+      ...messageDraftByTicketId.value,
+      [ticketId]: '',
+    }
+
     toast.success('Mensagem enviada')
+    void loadTickets(false)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao enviar mensagem'
     toast.error(message)
@@ -320,12 +367,40 @@ const updateTicketStatus = async (ticketId: number, status: Ticket['status']) =>
   }
 }
 
+const handleRealtimeMessageCreated = async (payload: { message: Record<string, unknown> }) => {
+  const ticketId = Number(payload.message.ticket_id)
+  const message = toTicketMessage(payload.message)
+
+  if (!Number.isFinite(ticketId) || !message) {
+    return
+  }
+
+  upsertTicketMessage(ticketId, message)
+  await loadTickets(false)
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Lifecycle
 // ═══════════════════════════════════════════════════════════════
 
 onMounted(async () => {
   await Promise.all([loadTickets(), loadTemplates(), loadUsers()])
+})
+
+const cleanupRealtimeListeners = [
+  onTicketCreated(() => {
+    void loadTickets(false)
+  }),
+  onTicketUpdated(() => {
+    void loadTickets(false)
+  }),
+  onMessageCreated((payload) => {
+    void handleRealtimeMessageCreated(payload)
+  }),
+]
+
+onUnmounted(() => {
+  cleanupRealtimeListeners.forEach((cleanup) => cleanup())
 })
 </script>
 
