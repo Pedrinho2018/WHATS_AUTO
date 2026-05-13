@@ -31,6 +31,15 @@ interface TicketMessage {
   created_at?: string
 }
 
+interface TicketAudit {
+  id: number
+  action: 'created' | 'status_changed' | 'transferred' | 'message_sent'
+  actor_name?: string
+  previous_value?: string
+  new_value?: string
+  created_at?: string
+}
+
 const tickets = ref<Ticket[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
@@ -42,6 +51,8 @@ const authStore = useAuthStore()
 const expandedTicketId = ref<number | null>(null)
 const messagesByTicketId = ref<Record<number, TicketMessage[]>>({})
 const messagesLoadingByTicketId = ref<Record<number, boolean>>({})
+const auditByTicketId = ref<Record<number, TicketAudit[]>>({})
+const auditLoadingByTicketId = ref<Record<number, boolean>>({})
 const sendingMessageByTicketId = ref<Record<number, boolean>>({})
 const messageDraftByTicketId = ref<Record<number, string>>({})
 
@@ -66,6 +77,13 @@ const statusClass: Record<Ticket['status'], string> = {
   in_progress: 'status-badge status-progress',
   resolved: 'status-badge status-resolved',
   closed: 'status-badge status-closed',
+}
+
+const auditActionLabel: Record<TicketAudit['action'], string> = {
+  created: 'Conversa criada',
+  status_changed: 'Status alterado',
+  transferred: 'Atendimento transferido',
+  message_sent: 'Resposta enviada',
 }
 
 const canReplyToTicket = computed(() => ['admin', 'manager', 'agent', 'viewer'].includes(authStore.user?.role || ''))
@@ -114,6 +132,13 @@ const loadInstances = async () => {
 const setMessagesLoading = (ticketId: number, value: boolean) => {
   messagesLoadingByTicketId.value = {
     ...messagesLoadingByTicketId.value,
+    [ticketId]: value,
+  }
+}
+
+const setAuditLoading = (ticketId: number, value: boolean) => {
+  auditLoadingByTicketId.value = {
+    ...auditLoadingByTicketId.value,
     [ticketId]: value,
   }
 }
@@ -179,6 +204,20 @@ const loadTicketMessages = async (ticketId: number) => {
   }
 }
 
+const loadTicketAudit = async (ticketId: number) => {
+  setAuditLoading(ticketId, true)
+
+  try {
+    const { data } = await api.get(`/tickets/${ticketId}/audit`)
+    auditByTicketId.value = {
+      ...auditByTicketId.value,
+      [ticketId]: data,
+    }
+  } finally {
+    setAuditLoading(ticketId, false)
+  }
+}
+
 const toggleConversation = async (ticketId: number) => {
   if (expandedTicketId.value === ticketId) {
     expandedTicketId.value = null
@@ -189,6 +228,10 @@ const toggleConversation = async (ticketId: number) => {
 
   if (!messagesByTicketId.value[ticketId]) {
     await loadTicketMessages(ticketId)
+  }
+
+  if (!auditByTicketId.value[ticketId]) {
+    await loadTicketAudit(ticketId)
   }
 }
 
@@ -211,7 +254,7 @@ const sendMessageToTicket = async (ticket: Ticket) => {
     }
 
     toast.success('Mensagem enviada.')
-    await Promise.all([loadTicketMessages(ticket.id), loadTickets()])
+    await Promise.all([loadTicketMessages(ticket.id), loadTicketAudit(ticket.id), loadTickets()])
   } catch (error) {
     const requestError = error as AxiosError<{ error?: string }>
     const backendMessage = requestError.response?.data?.error
@@ -284,6 +327,7 @@ const createChat = async () => {
     isNewChatModalOpen.value = false
 
     await loadTickets()
+    await loadTicketAudit(ticketId)
   } catch (error) {
     const requestError = error as AxiosError<{ error?: string }>
     const backendMessage = requestError.response?.data?.error
@@ -327,7 +371,7 @@ const handleRealtimeMessageCreated = async (payload: { message: Record<string, u
   }
 
   upsertTicketMessage(ticketId, message)
-  await loadTickets()
+  await Promise.all([loadTickets(), loadTicketAudit(ticketId)])
 }
 
 onMounted(async () => {
@@ -488,6 +532,39 @@ const closeNewChatModal = () => {
                   <div v-else class="spinner-sm"></div>
                   {{ sendingMessageByTicketId[item.id] ? 'Enviando...' : 'Enviar' }}
                 </button>
+              </div>
+
+              <div class="audit-panel">
+                <div class="audit-header">
+                  <span>Histórico e auditoria</span>
+                  <button type="button" class="btn-audit-refresh" @click="loadTicketAudit(item.id)">
+                    Atualizar
+                  </button>
+                </div>
+
+                <div v-if="auditLoadingByTicketId[item.id]" class="messages-loading">
+                  <div class="spinner-sm"></div>
+                  Carregando histórico...
+                </div>
+
+                <div v-else-if="!auditByTicketId[item.id]?.length" class="no-audit">
+                  Nenhum evento de auditoria registrado ainda.
+                </div>
+
+                <div v-else class="audit-list">
+                  <div v-for="audit in auditByTicketId[item.id]" :key="audit.id" class="audit-item">
+                    <div>
+                      <p class="audit-title">{{ auditActionLabel[audit.action] }}</p>
+                      <p class="audit-description">
+                        {{ audit.actor_name || 'Sistema' }}
+                        <template v-if="audit.previous_value || audit.new_value">
+                          • {{ audit.previous_value || '-' }} → {{ audit.new_value || '-' }}
+                        </template>
+                      </p>
+                    </div>
+                    <time class="audit-time">{{ dayjs(audit.created_at).format('DD/MM HH:mm') }}</time>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1079,6 +1156,67 @@ const closeNewChatModal = () => {
 .btn-cancel:hover {
   background: rgba(var(--v-theme-surface), 0.5);
   border-color: rgba(var(--v-border-color), 0.5);
+}
+
+.audit-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(var(--v-theme-surface), 0.35);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-md);
+}
+
+.audit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.btn-audit-refresh {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.25);
+  border-radius: var(--border-radius-sm);
+  color: rgba(var(--v-theme-on-surface), 0.72);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.audit-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid rgba(var(--v-border-color), 0.14);
+}
+
+.audit-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.audit-description,
+.audit-time,
+.no-audit {
+  margin: 0;
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.audit-time {
+  white-space: nowrap;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -44,12 +44,8 @@ jobs:
             ### 📝 Changelog
             ${{ steps.changelog.outputs.changelog }}
             
-            ### 📦 Docker Images
-            - Backend: `ghcr.io/${{ github.repository }}-backend:${{ steps.get_version.outputs.VERSION }}`
-            - Frontend: `ghcr.io/${{ github.repository }}-frontend:${{ steps.get_version.outputs.VERSION }}`
-            
-            ### 🚀 Deploy
-            This release has been automatically deployed to production.
+            ### Deploy
+            Para publicar esta versao, rode manualmente o workflow `Deploy`.
           draft: false
           prerelease: false
         env:

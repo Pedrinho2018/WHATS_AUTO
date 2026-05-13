@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User, Company, sequelize } from '../models';
 import logger from '../utils';
+import operationalEventService from './operational-event.service';
 
 export interface LoginData {
   email: string;
@@ -28,11 +29,26 @@ class AuthService {
 
     if (!user) {
       logger.warn('Login rejeitado: usuario nao encontrado', { email: data.email });
+      await operationalEventService.record({
+        eventType: 'login_failed',
+        status: 'warning',
+        source: 'auth',
+        detail: 'usuario_nao_encontrado',
+        metadata: { email: data.email },
+      });
       throw new Error('Credenciais inválidas');
     }
 
     if (!user.is_active) {
       logger.warn('Login rejeitado: usuario inativo', { userId: user.id, companyId: user.company_id });
+      await operationalEventService.record({
+        companyId: user.company_id,
+        eventType: 'login_failed',
+        status: 'warning',
+        source: 'auth',
+        detail: 'usuario_inativo',
+        metadata: { userId: user.id, email: user.email },
+      });
       throw new Error('Usuário inativo');
     }
 
@@ -41,6 +57,14 @@ class AuthService {
     logger.debug('Password validation tempo', { ms: Date.now() - t1 });
     if (!isValidPassword) {
       logger.warn('Login rejeitado: senha invalida', { userId: user.id, companyId: user.company_id });
+      await operationalEventService.record({
+        companyId: user.company_id,
+        eventType: 'login_failed',
+        status: 'warning',
+        source: 'auth',
+        detail: 'senha_invalida',
+        metadata: { userId: user.id, email: user.email },
+      });
       throw new Error('Credenciais inválidas');
     }
 
@@ -60,6 +84,15 @@ class AuthService {
       });
 
     const token = this.generateToken(user);
+
+    await operationalEventService.record({
+      companyId: user.company_id,
+      eventType: 'login_success',
+      status: 'success',
+      source: 'auth',
+      detail: 'login_realizado',
+      metadata: { userId: user.id, email: user.email, role: user.role },
+    });
 
     return {
       user: {

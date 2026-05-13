@@ -68,6 +68,7 @@ jest.mock('../../middlewares', () => ({
   __esModule: true,
   authRateLimit: (_req: unknown, _res: unknown, next: () => void) => next(),
   webhookRateLimit: (_req: unknown, _res: unknown, next: () => void) => next(),
+  sensitiveActionRateLimit: (_req: unknown, _res: unknown, next: () => void) => next(),
   webhookAuthMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
   authMiddleware: (req: { user?: unknown; company?: unknown }, _res: unknown, next: () => void) => {
     req.user = {

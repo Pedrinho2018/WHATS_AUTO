@@ -100,6 +100,18 @@ export const webhookRateLimit = createInMemoryRateLimit({
   message: 'Muitas requisicoes de webhook. Tente novamente em alguns segundos.',
 });
 
+export const sensitiveActionRateLimit = createInMemoryRateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Muitas acoes sensiveis. Aguarde alguns segundos antes de tentar novamente.',
+  keyGenerator: (req) => {
+    const user = (req as Request & { user?: { id?: number; company_id?: number } }).user;
+    return user?.id && user?.company_id
+      ? `${user.company_id}:${user.id}`
+      : req.ip || req.socket.remoteAddress || 'anonymous';
+  },
+});
+
 const secureCompare = (left: string, right: string): boolean => {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
@@ -288,6 +300,7 @@ export const errorHandler = (
 export default {
   authRateLimit,
   webhookRateLimit,
+  sensitiveActionRateLimit,
   webhookAuthMiddleware,
   authMiddleware,
   roleMiddleware,

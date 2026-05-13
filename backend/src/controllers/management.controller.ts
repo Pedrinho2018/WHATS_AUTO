@@ -16,6 +16,7 @@ import managementService, {
 } from '../services/management.service';
 import logger from '../utils';
 import { emitTicketCreated, emitTicketUpdated } from '../realtime/events';
+import operationalEventService from '../services/operational-event.service';
 
 class ManagementController {
   private requireCompanyId(req: AuthRequest): number {
@@ -37,6 +38,13 @@ class ManagementController {
     return value;
   }
 
+  private getAuditActor(req: AuthRequest): { id?: number; name?: string } {
+    return {
+      id: req.user?.id,
+      name: req.user?.name,
+    };
+  }
+
   async dashboard(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
@@ -44,6 +52,27 @@ class ManagementController {
       res.json(summary);
     } catch (error) {
       sendControllerError(res, error, 'Erro ao carregar dashboard');
+    }
+  }
+
+  async diagnostics(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const ticketId = req.query.ticketId ? Number(req.query.ticketId) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+      if (ticketId !== undefined && !Number.isFinite(ticketId)) {
+        throw new DomainError('Ticket invalido', 400);
+      }
+
+      const [events, summary] = await Promise.all([
+        operationalEventService.list(companyId, { ticketId, limit }),
+        operationalEventService.getHealthSummary(companyId),
+      ]);
+
+      res.json({ summary, events });
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao carregar diagnostico');
     }
   }
 
@@ -60,7 +89,7 @@ class ManagementController {
   async createUser(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
-      const user = await managementService.createUser(companyId, req.body as CreateUserInput);
+      const user = await managementService.createUser(companyId, req.body as CreateUserInput, this.getAuditActor(req));
       res.status(201).json(user);
     } catch (error) {
       logger.error('Falha ao criar usuario', error);
@@ -72,7 +101,7 @@ class ManagementController {
     try {
       const companyId = this.requireCompanyId(req);
       const userId = this.parseIdParam(req.params.id);
-      const user = await managementService.updateUser(companyId, userId, req.body as UpdateUserInput);
+      const user = await managementService.updateUser(companyId, userId, req.body as UpdateUserInput, this.getAuditActor(req));
       res.json(user);
     } catch (error) {
       logger.error('Falha ao atualizar usuario', error);
@@ -177,7 +206,7 @@ class ManagementController {
   async createTicket(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
-      const ticket = await managementService.createTicket(companyId, req.body as CreateTicketInput);
+      const ticket = await managementService.createTicket(companyId, req.body as CreateTicketInput, this.getAuditActor(req));
       emitTicketCreated(ticket);
       res.status(201).json(ticket);
     } catch (error) {
@@ -190,12 +219,68 @@ class ManagementController {
     try {
       const companyId = this.requireCompanyId(req);
       const ticketId = this.parseIdParam(req.params.id);
-      const ticket = await managementService.updateTicket(companyId, ticketId, req.body as UpdateTicketInput);
+      const ticket = await managementService.updateTicket(companyId, ticketId, req.body as UpdateTicketInput, this.getAuditActor(req));
       emitTicketUpdated(ticket);
       res.json(ticket);
     } catch (error) {
       logger.error('Falha ao atualizar conversa', error);
       sendControllerError(res, error, 'Erro ao atualizar conversa');
+    }
+  }
+
+  async listTicketAudit(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const ticketId = this.parseIdParam(req.params.id);
+      const audits = await managementService.listTicketAudit(companyId, ticketId);
+      res.json(audits);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao listar auditoria da conversa');
+    }
+  }
+
+  async exportContactData(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const contactPhoneParam = req.params.contactPhone;
+      const contactPhone = Array.isArray(contactPhoneParam) ? contactPhoneParam[0] : contactPhoneParam;
+
+      if (!contactPhone) {
+        throw new DomainError('Telefone do contato é obrigatório', 400);
+      }
+
+      const data = await managementService.exportContactData(companyId, contactPhone, this.getAuditActor(req));
+      res.json(data);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao exportar dados do contato');
+    }
+  }
+
+  async deleteContactData(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const contactPhoneParam = req.params.contactPhone;
+      const contactPhone = Array.isArray(contactPhoneParam) ? contactPhoneParam[0] : contactPhoneParam;
+
+      if (!contactPhone) {
+        throw new DomainError('Telefone do contato é obrigatório', 400);
+      }
+
+      const result = await managementService.deleteContactData(companyId, contactPhone, this.getAuditActor(req));
+      res.json(result);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao remover dados do contato');
+    }
+  }
+
+  async applyPrivacyRetention(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const retentionDays = Number(req.body?.retentionDays);
+      const result = await managementService.applyMessageRetention(companyId, retentionDays, this.getAuditActor(req));
+      res.json(result);
+    } catch (error) {
+      sendControllerError(res, error, 'Erro ao aplicar retencao de mensagens');
     }
   }
 
@@ -254,6 +339,17 @@ class ManagementController {
     }
   }
 
+  async seedStandardMessageTemplates(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const companyId = this.requireCompanyId(req);
+      const result = await managementService.seedStandardMessageTemplates(companyId);
+      res.status(201).json(result);
+    } catch (error) {
+      logger.error('Falha ao aplicar templates padrao', error);
+      sendControllerError(res, error, 'Erro ao aplicar templates padrao');
+    }
+  }
+
   async updateMessageTemplate(req: AuthRequest, res: Response): Promise<void> {
     try {
       const companyId = this.requireCompanyId(req);
@@ -283,7 +379,7 @@ class ManagementController {
     try {
       const companyId = this.requireCompanyId(req);
       const ticketId = this.parseIdParam(req.params.id);
-      const ticket = await managementService.transferTicket(companyId, ticketId, req.body as TransferTicketInput);
+      const ticket = await managementService.transferTicket(companyId, ticketId, req.body as TransferTicketInput, this.getAuditActor(req));
       emitTicketUpdated(ticket);
       res.json(ticket);
     } catch (error) {

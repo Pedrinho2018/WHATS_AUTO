@@ -53,8 +53,17 @@ const write = (level: LogLevel, message: string, meta?: unknown): void => {
 	}
 
 	const timestamp = new Date().toISOString();
-	const suffix = meta === undefined ? '' : ` ${JSON.stringify(serialize(meta))}`;
-	const output = `[${timestamp}] [${level.toUpperCase()}] ${message}${suffix}`;
+	const payload = {
+		timestamp,
+		level,
+		message,
+		...(meta && typeof meta === 'object' && !(meta instanceof Error)
+			? (serialize(meta) as Record<string, unknown>)
+			: meta === undefined
+				? {}
+				: { meta: serialize(meta) }),
+	};
+	const output = JSON.stringify(payload);
 
 	if (level === 'error') {
 		console.error(output);

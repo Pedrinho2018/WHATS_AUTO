@@ -29,6 +29,15 @@ interface TicketMessage {
   created_at?: string
 }
 
+interface TicketAudit {
+  id: number
+  action: 'created' | 'status_changed' | 'transferred' | 'message_sent'
+  actor_name?: string
+  previous_value?: string
+  new_value?: string
+  created_at?: string
+}
+
 interface MessageTemplate {
   id: number
   name: string
@@ -54,7 +63,9 @@ const loading = ref(true)
 const searchQuery = ref('')
 const selectedTicketId = ref<number | null>(null)
 const messagesByTicketId = ref<Record<number, TicketMessage[]>>({})
+const auditByTicketId = ref<Record<number, TicketAudit[]>>({})
 const messagesLoadingByTicketId = ref<Record<number, boolean>>({})
+const auditLoadingByTicketId = ref<Record<number, boolean>>({})
 const sendingMessageByTicketId = ref<Record<number, boolean>>({})
 const messageDraftByTicketId = ref<Record<number, string>>({})
 const showTransferModal = ref(false)
@@ -148,6 +159,13 @@ const categoryLabel: Record<string, string> = {
   custom: 'Personalizado',
 }
 
+const auditActionLabel: Record<TicketAudit['action'], string> = {
+  created: 'Conversa criada',
+  status_changed: 'Status alterado',
+  transferred: 'Atendimento transferido',
+  message_sent: 'Resposta enviada',
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Métodos
 // ═══════════════════════════════════════════════════════════════
@@ -155,6 +173,13 @@ const categoryLabel: Record<string, string> = {
 const setMessagesLoading = (ticketId: number, value: boolean) => {
   messagesLoadingByTicketId.value = {
     ...messagesLoadingByTicketId.value,
+    [ticketId]: value,
+  }
+}
+
+const setAuditLoading = (ticketId: number, value: boolean) => {
+  auditLoadingByTicketId.value = {
+    ...auditLoadingByTicketId.value,
     [ticketId]: value,
   }
 }
@@ -247,6 +272,10 @@ const selectTicket = async (ticketId: number) => {
   if (!messagesByTicketId.value[ticketId]) {
     await loadTicketMessages(ticketId)
   }
+
+  if (!auditByTicketId.value[ticketId]) {
+    await loadTicketAudit(ticketId)
+  }
 }
 
 const loadTicketMessages = async (ticketId: number) => {
@@ -263,6 +292,23 @@ const loadTicketMessages = async (ticketId: number) => {
     toast.error(message)
   } finally {
     setMessagesLoading(ticketId, false)
+  }
+}
+
+const loadTicketAudit = async (ticketId: number) => {
+  setAuditLoading(ticketId, true)
+
+  try {
+    const { data } = await api.get(`/tickets/${ticketId}/audit`)
+    auditByTicketId.value = {
+      ...auditByTicketId.value,
+      [ticketId]: data,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erro ao carregar histórico'
+    toast.error(message)
+  } finally {
+    setAuditLoading(ticketId, false)
   }
 }
 
@@ -293,6 +339,7 @@ const sendMessage = async (ticketId: number) => {
 
     toast.success('Mensagem enviada')
     void loadTickets(false)
+    void loadTicketAudit(ticketId)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao enviar mensagem'
     toast.error(message)
@@ -331,22 +378,24 @@ const transferTicket = async () => {
   }
 
   try {
-    const { data } = await api.post(`/tickets/${transferringTicketId.value}/transfer`, {
+    const ticketId = transferringTicketId.value
+    const { data } = await api.post(`/tickets/${ticketId}/transfer`, {
       user_id: transferTargetUserId.value,
       status: 'pending',
     })
 
-    const index = tickets.value.findIndex((t) => t.id === transferringTicketId.value)
+    const index = tickets.value.findIndex((t) => t.id === ticketId)
     if (index !== -1) {
       tickets.value[index] = data
     }
 
     toast.success('Atendimento transferido com sucesso')
-    closeTransferModal()
 
-    if (selectedTicketId.value === transferringTicketId.value) {
+    if (selectedTicketId.value === ticketId) {
       selectedTicketId.value = null
     }
+    void loadTicketAudit(ticketId)
+    closeTransferModal()
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao transferir atendimento'
     toast.error(message)
@@ -361,6 +410,7 @@ const updateTicketStatus = async (ticketId: number, status: Ticket['status']) =>
       tickets.value[index] = data
     }
     toast.success('Status atualizado')
+    void loadTicketAudit(ticketId)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro ao atualizar status'
     toast.error(message)
@@ -376,7 +426,7 @@ const handleRealtimeMessageCreated = async (payload: { message: Record<string, u
   }
 
   upsertTicketMessage(ticketId, message)
-  await loadTickets(false)
+  await Promise.all([loadTickets(false), loadTicketAudit(ticketId)])
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -531,6 +581,28 @@ onUnmounted(() => {
               </div>
               <div class="message-time">
                 {{ dayjs(msg.created_at).format('HH:mm') }}
+              </div>
+            </div>
+          </div>
+
+          <div class="audit-strip">
+            <div class="audit-strip-header">
+              <span>Histórico</span>
+              <button @click="loadTicketAudit(selectedTicket.id)">Atualizar</button>
+            </div>
+
+            <div v-if="auditLoadingByTicketId[selectedTicket.id]" class="audit-empty">
+              Carregando histórico...
+            </div>
+            <div v-else-if="!auditByTicketId[selectedTicket.id]?.length" class="audit-empty">
+              Nenhum evento registrado.
+            </div>
+            <div v-else class="audit-strip-list">
+              <div v-for="audit in auditByTicketId[selectedTicket.id].slice(0, 5)" :key="audit.id" class="audit-strip-item">
+                <span>{{ auditActionLabel[audit.action] }}</span>
+                <small>
+                  {{ audit.actor_name || 'Sistema' }} • {{ dayjs(audit.created_at).format('DD/MM HH:mm') }}
+                </small>
               </div>
             </div>
           </div>
@@ -1113,6 +1185,57 @@ onUnmounted(() => {
   align-items: flex-end;
   font-size: 0.75rem;
   color: rgba(var(--v-theme-on-surface), 0.5);
+}
+
+.audit-strip {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(var(--v-theme-surface), 0.35);
+  border: 1px solid rgba(var(--v-border-color), 0.2);
+  border-radius: var(--border-radius-md);
+}
+
+.audit-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.audit-strip-header button {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.25);
+  border-radius: var(--border-radius-sm);
+  color: rgba(var(--v-theme-on-surface), 0.72);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.audit-strip-list {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.audit-strip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.audit-strip-item span {
+  font-weight: 600;
+}
+
+.audit-strip-item small,
+.audit-empty {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-size: 0.75rem;
 }
 
 .message-input-section {

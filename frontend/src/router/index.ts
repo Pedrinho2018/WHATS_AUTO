@@ -29,6 +29,12 @@ const routes = [
     meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('../views/Onboarding.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
     path: '/tickets',
     name: 'Tickets',
     component: () => import('../views/Tickets.vue'),
@@ -50,6 +56,18 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
+    path: '/templates',
+    name: 'MessageTemplates',
+    component: () => import('../views/MessageTemplates.vue'),
+    meta: { requiresAuth: true, roles: ['admin', 'manager'] }
+  },
+  {
+    path: '/diagnostics',
+    name: 'Diagnostics',
+    component: () => import('../views/Diagnostics.vue'),
     meta: { requiresAuth: true, roles: ['admin', 'manager'] }
   },
   {

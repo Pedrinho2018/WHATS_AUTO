@@ -11,6 +11,7 @@ import {
   authMiddleware,
   authRateLimit,
   roleMiddleware,
+  sensitiveActionRateLimit,
   webhookAuthMiddleware,
   webhookRateLimit,
 } from '../middlewares';
@@ -110,12 +111,19 @@ routes.patch('/admin/users/:userId/reset-password', roleMiddleware('admin'), adm
 
 // Dashboard
 routes.get('/dashboard/summary', managementController.dashboard.bind(managementController));
+routes.get('/diagnostics/events', roleMiddleware('admin', 'manager'), sensitiveActionRateLimit, managementController.diagnostics.bind(managementController));
+
+// Privacidade e LGPD
+routes.get('/privacy/contacts/:contactPhone/export', roleMiddleware('admin', 'manager'), sensitiveActionRateLimit, managementController.exportContactData.bind(managementController));
+routes.delete('/privacy/contacts/:contactPhone', roleMiddleware('admin'), sensitiveActionRateLimit, managementController.deleteContactData.bind(managementController));
+routes.post('/privacy/retention/apply', roleMiddleware('admin'), sensitiveActionRateLimit, managementController.applyPrivacyRetention.bind(managementController));
 
 // Conversas (area do usuario/agente)
 routes.get('/tickets', managementController.listTickets.bind(managementController));
 routes.get('/tickets/history/:contactPhone', managementController.listTicketHistory.bind(managementController));
 routes.post('/tickets', managementController.createTicket.bind(managementController));
 routes.patch('/tickets/:id', managementController.updateTicket.bind(managementController));
+routes.get('/tickets/:id/audit', managementController.listTicketAudit.bind(managementController));
 routes.post('/tickets/:id/transfer', roleMiddleware('admin', 'manager', 'agent'), managementController.transferTicket.bind(managementController));
 routes.get('/messages/tickets/:ticketId', messagesController.listTicketMessages.bind(messagesController));
 routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager', 'agent', 'viewer'), messagesController.sendTextToTicket.bind(messagesController));
@@ -123,6 +131,7 @@ routes.post('/messages/tickets/:ticketId/text', roleMiddleware('admin', 'manager
 // Templates de Mensagem
 routes.get('/templates/messages', managementController.listMessageTemplates.bind(managementController));
 routes.post('/templates/messages', roleMiddleware('admin', 'manager'), managementController.createMessageTemplate.bind(managementController));
+routes.post('/templates/messages/standardize', roleMiddleware('admin', 'manager'), managementController.seedStandardMessageTemplates.bind(managementController));
 routes.patch('/templates/messages/:id', roleMiddleware('admin', 'manager'), managementController.updateMessageTemplate.bind(managementController));
 routes.delete('/templates/messages/:id', roleMiddleware('admin', 'manager'), managementController.deleteMessageTemplate.bind(managementController));
 

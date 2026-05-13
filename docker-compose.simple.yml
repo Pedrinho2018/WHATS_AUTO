@@ -1,0 +1,191 @@
+name: whatsauto
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      VITE_API_URL: /api
+      VITE_SOCKET_URL: ""
+      VITE_SOCKET_PATH: /socket.io
+      VITE_TYPEBOT_BUILDER_URL: ${TYPEBOT_BUILDER_URL:-https://app.typebot.io/typebots}
+    ports:
+      - "${APP_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SKIP_MIGRATIONS: "false"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://127.0.0.1}
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-whatsauto}
+      DB_USER: ${DB_USER:-whatsauto}
+      DB_PASS: ${DB_PASS:-whatsauto_change_me}
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_with_at_least_32_chars}
+      BUSINESS_NAME: ${BUSINESS_NAME:-WhatsAuto}
+      COMPANY_SUBDOMAIN: ${COMPANY_SUBDOMAIN:-default}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123456}
+      ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-true}
+      REVOLUTION_API_MODE: ${REVOLUTION_API_MODE:-real}
+      EVOLUTION_SERVER_URL: http://evolution:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-change_me_evolution_key}
+      EVOLUTION_WEBHOOK_SECRET: ${EVOLUTION_WEBHOOK_SECRET:-change_me_evolution_key}
+      REVOLUTION_API_URL: http://evolution:8080
+      REVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-change_me_evolution_key}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
+      MESSAGE_SEND_MAX_ATTEMPTS: ${MESSAGE_SEND_MAX_ATTEMPTS:-3}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      evolution:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  evolution:
+    image: atendai/evolution-api:latest
+    restart: unless-stopped
+    init: true
+    environment:
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://localhost:8080}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-change_me_evolution_key}
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-evolution}:${POSTGRES_PASSWORD:-evolution_change_me}@postgres:5432/${POSTGRES_DB:-evolution}
+      CACHE_REDIS_ENABLED: "false"
+      LOG_LEVEL: WARN
+      LOG_BAILEYS: error
+      DEL_INSTANCE: "false"
+      QRCODE_LIMIT: 30
+      WEBHOOK_URL: http://backend:3000/api/webhooks/evolution
+      WEBHOOK_API_TOKEN: ${EVOLUTION_WEBHOOK_SECRET:-change_me_evolution_key}
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "true"
+      WEBHOOK_EVENTS_MESSAGES_SET: "false"
+      WEBHOOK_EVENTS_MESSAGES_UPDATE: "false"
+      WEBHOOK_EVENTS_SEND_MESSAGE: "false"
+      WEBHOOK_EVENTS_CONTACTS_UPSERT: "false"
+      WEBHOOK_EVENTS_CHATS_UPSERT: "false"
+      WEBHOOK_EVENTS_GROUPS_UPSERT: "false"
+    ports:
+      - "${EVOLUTION_PORT:-8080}:8080"
+    volumes:
+      - evolution_data:/evolution/instances
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-root_change_me}
+      MYSQL_DATABASE: ${DB_NAME:-whatsauto}
+      MYSQL_USER: ${DB_USER:-whatsauto}
+      MYSQL_PASSWORD: ${DB_PASS:-whatsauto_change_me}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mariadb", "-u${DB_USER:-whatsauto}", "-p${DB_PASS:-whatsauto_change_me}", "-e", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evolution}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-evolution_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-evolution}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evolution} -d ${POSTGRES_DB:-evolution}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mariadb-backup:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      DB_HOST: mariadb
+      DB_NAME: ${DB_NAME:-whatsauto}
+      DB_USER: ${DB_USER:-whatsauto}
+      DB_PASS: ${DB_PASS:-whatsauto_change_me}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./infrastructure/backup-mariadb.sh:/usr/local/bin/backup-mariadb.sh:ro
+      - mariadb_backups:/backups
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: >
+      sh -c "while true; do
+        /usr/local/bin/backup-mariadb.sh;
+        sleep $${BACKUP_INTERVAL_SECONDS:-86400};
+      done"
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "${CADVISOR_PORT:-8081}:8080"
+
+volumes:
+  mariadb_data:
+  postgres_data:
+  evolution_data:
+  mariadb_backups:

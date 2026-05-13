@@ -31,6 +31,17 @@ Plataforma multi-tenant de atendimento WhatsApp da Norte MT Sistemas, com backen
 
 ## Estrutura do Repositório
 
+- [Guia de localizacao do projeto](docs/README_PROJETO.md)
+- [Modularizacao do projeto](docs/MODULARIZACAO.md)
+- [Arquitetura](docs/ARQUITETURA.md)
+- [Decisoes arquiteturais](docs/DECISOES_ARQUITETURA.md)
+- [UML e diagramas](docs/UML.md)
+- [Operacao e confiabilidade](docs/OPERACAO.md)
+- [Seguranca e LGPD](docs/SEGURANCA_LGPD.md)
+- [Politica de privacidade - modelo](docs/POLITICA_PRIVACIDADE_MODELO.md)
+- [Termos de uso - modelo](docs/TERMOS_USO_MODELO.md)
+- [DPA controlador/operador - modelo](docs/DPA_OPERADOR_CONTROLADOR_MODELO.md)
+- [Procedimento de incidente](docs/PROCEDIMENTO_INCIDENTE_SEGURANCA.md)
 - [Documentação detalhada](docs/guia-da-aplicacao-e-do-codigo.md)
 - `backend/`: API, modelos, middlewares, controllers, serviços, testes e OpenAPI.
 - `frontend/`: SPA em Vue 3 com layout, rotas, stores e builder de workflow.
@@ -85,11 +96,10 @@ cp backend/src/migrations/TEMPLATE.ts backend/src/migrations/$(date +%Y%m%d%H%M%
 
 ## �🚀 Entrega Contínua (CI/CD)
 
-O projeto utiliza **GitHub Actions** para automação completa:
+O projeto utiliza **GitHub Actions** com um fluxo simplificado:
 
-- **CI (Integração Contínua)**: Lint, build e testes em cada push/PR
-- **CD (Deploy Contínuo)**: Deploy automático com smoke tests e notificações Slack
-- **Validação Pré-Deploy**: Workflow manual para validar antes de produção
+- **CI**: build do backend, build do frontend e validacao do `docker-compose.simple.yml`.
+- **Deploy**: workflow manual via SSH que atualiza o servidor e sobe a stack simples.
 - **Release Automática**: Cria releases em tags `v*`
 
 📖 **Documentação:**
@@ -97,10 +107,10 @@ O projeto utiliza **GitHub Actions** para automação completa:
 - [DEPLOYMENT.md](.github/DEPLOYMENT.md) - Setup de secrets e configuração
 
 **Resumo do fluxo:**
-1. Push/PR → CI (lint, build, testes, Docker) ✅
-2. Merge em `main` → CD (build, deploy, smoke tests) 🚀
-3. Rollback automático se falhar ↩️
-4. Notificação Slack 💬
+1. Push/PR → CI ✅
+2. Actions → Deploy → Run workflow 🚀
+3. Servidor executa `git pull` e `docker compose ... up -d --build`
+4. Smoke test valida `/health` e `/api/health`
 
 ## Integrações e Observações
 

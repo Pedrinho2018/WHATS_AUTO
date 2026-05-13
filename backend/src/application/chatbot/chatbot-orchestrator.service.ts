@@ -1,4 +1,4 @@
-import { Flow, Instance, Message, Ticket } from '../../models';
+import { Flow, Instance, Message, Ticket, TicketAudit } from '../../models';
 import { Transaction } from 'sequelize';
 import { emitMessageCreated, emitTicketCreated, emitTicketUpdated } from '../../realtime/events';
 import logger from '../../utils';
@@ -19,6 +19,7 @@ import {
   SequelizeTicketRepository,
 } from '../../infrastructure/persistence/sequelize/sequelize-chatbot.repositories';
 import SequelizeUnitOfWork from '../../infrastructure/persistence/sequelize/sequelize-unit-of-work';
+import operationalEventService from '../../services/operational-event.service';
 
 export type InboundProcessingResult = {
   received: boolean;
@@ -110,6 +111,24 @@ export default class ChatbotOrchestratorService {
       await this.ticketRepository.touchLastMessage(ticket, parsed.pushName, tx);
       const inboundMessage = await this.persistInboundMessage(instance, ticket, parsed, rawPayload, tx);
 
+      if (wasNew) {
+        await TicketAudit.create(
+          {
+            company_id: instance.company_id,
+            ticket_id: ticket.id,
+            actor_name: parsed.pushName || 'Sistema',
+            action: 'created',
+            new_value: ticket.status,
+            metadata: {
+              source: 'inbound',
+              contactPhone: parsed.phone,
+              messageId: inboundMessage.id,
+            },
+          },
+          { transaction: tx }
+        );
+      }
+
       return {
         ticket,
         wasNew,
@@ -122,6 +141,20 @@ export default class ChatbotOrchestratorService {
     }
     emitTicketUpdated(persistenceResult.ticket);
     emitMessageCreated(persistenceResult.inboundMessage);
+
+    await operationalEventService.record({
+      companyId: instance.company_id,
+      ticketId: persistenceResult.ticket.id,
+      messageId: persistenceResult.inboundMessage.id,
+      eventType: 'message_saved',
+      status: 'success',
+      source: 'chatbot-orchestrator',
+      detail: 'Mensagem inbound salva',
+      metadata: {
+        externalMessageId: parsed.externalMessageId,
+        wasNewTicket: persistenceResult.wasNew,
+      },
+    });
 
     const flows: Flow[] = await this.flowRepository.listActiveWebhookFlows(instance.company_id);
 

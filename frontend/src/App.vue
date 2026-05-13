@@ -28,9 +28,12 @@ const navItems = computed(() => {
 
   const items = [
     { label: 'Dashboard', to: '/', icon: 'mdi-view-dashboard-outline' },
+    { label: 'Onboarding', to: '/onboarding', icon: 'mdi-rocket-launch-outline' },
     { label: 'Conversas', to: '/tickets', icon: 'mdi-chat-processing-outline' },
     { label: 'Instancias', to: '/instances', icon: 'mdi-cellphone-link' },
+    { label: 'Templates', to: '/templates', icon: 'mdi-message-text-outline' },
     { label: 'Fluxos', to: '/builder', icon: 'mdi-sitemap' },
+    { label: 'Diagnostico', to: '/diagnostics', icon: 'mdi-stethoscope' },
     { label: 'Configuracoes', to: '/settings', icon: 'mdi-cog-outline' },
   ]
 
@@ -50,11 +53,14 @@ const filteredNavItems = computed(() => {
 const pageMeta = computed(() => {
   const map: Record<string, { title: string; subtitle: string }> = {
     '/': { title: 'Dashboard', subtitle: 'Visao geral da operacao' },
+    '/onboarding': { title: 'Onboarding', subtitle: 'Implantacao guiada de cliente' },
     '/tickets': { title: 'Conversas', subtitle: 'Fila de atendimento e historico' },
     '/operator/queue': { title: 'Fila de Conversas', subtitle: 'Atendimento operacional' },
     '/instances': { title: 'Instancias', subtitle: 'Conectividade e status' },
     '/builder': { title: 'Fluxos', subtitle: 'Construtor de automacoes' },
+    '/diagnostics': { title: 'Diagnostico', subtitle: 'Eventos operacionais e saude' },
     '/settings': { title: 'Configuracoes', subtitle: 'Preferencias da operacao' },
+    '/templates': { title: 'Templates', subtitle: 'Mensagens padronizadas da equipe' },
     '/admin/users': { title: 'Usuarios', subtitle: 'Controle de acesso da equipe' },
   }
 

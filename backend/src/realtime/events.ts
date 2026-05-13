@@ -1,4 +1,5 @@
 import logger from '../utils';
+import operationalEventService from '../services/operational-event.service';
 import { getSocketServer } from './socket';
 
 type RealtimeEntity = {
@@ -28,6 +29,15 @@ const emitToCompany = (companyId: number, event: RealtimeEvent, payload: Realtim
   try {
     const io = getSocketServer();
     (io.to(`company:${companyId}`) as { emit: (name: RealtimeEvent, data: RealtimePayload) => void }).emit(event, payload);
+    void operationalEventService.record({
+      companyId,
+      ticketId: Number(payload.message?.ticket_id || payload.ticket?.id) || undefined,
+      messageId: Number(payload.message?.id) || undefined,
+      eventType: 'realtime_emitted',
+      status: 'success',
+      source: 'socket.io',
+      detail: event,
+    });
   } catch (error) {
     logger.debug('Realtime indisponivel para emissao', { event, companyId, error });
   }
