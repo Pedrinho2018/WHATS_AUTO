@@ -1,4 +1,4 @@
-import { Flow, Instance, Message, Ticket } from '../../models';
+import { Flow, Instance, Message, Ticket, TicketAudit } from '../../models';
 import { Transaction } from 'sequelize';
 import { emitMessageCreated, emitTicketCreated, emitTicketUpdated } from '../../realtime/events';
 import logger from '../../utils';
@@ -109,6 +109,24 @@ export default class ChatbotOrchestratorService {
       const { ticket, wasNew } = await this.findOrCreateTicket(instance, parsed, tx);
       await this.ticketRepository.touchLastMessage(ticket, parsed.pushName, tx);
       const inboundMessage = await this.persistInboundMessage(instance, ticket, parsed, rawPayload, tx);
+
+      if (wasNew) {
+        await TicketAudit.create(
+          {
+            company_id: instance.company_id,
+            ticket_id: ticket.id,
+            actor_name: parsed.pushName || 'Sistema',
+            action: 'created',
+            new_value: ticket.status,
+            metadata: {
+              source: 'inbound',
+              contactPhone: parsed.phone,
+              messageId: inboundMessage.id,
+            },
+          },
+          { transaction: tx }
+        );
+      }
 
       return {
         ticket,
