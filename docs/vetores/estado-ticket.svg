@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .sub { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .state { fill: #ffffff; stroke: #334155; stroke-width: 2.4; rx: 28; }
+      .state-text { font: 700 18px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .line { fill: none; stroke: #334155; stroke-width: 2.4; marker-end: url(#arrow); }
+      .soft { fill: none; stroke: #64748b; stroke-width: 2; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+      .label { font: 600 13px Arial, sans-serif; fill: #334155; }
+      .start { fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#f8fafc"/>
+  <text x="70" y="70" class="title">Estados do Ticket</text>
+  <text x="70" y="102" class="sub">Ciclo de vida de uma conversa/atendimento</text>
+
+  <circle cx="140" cy="220" r="14" class="start"/>
+  <rect x="250" y="180" width="180" height="80" class="state"/>
+  <text x="340" y="220" class="state-text">open</text>
+
+  <rect x="520" y="180" width="180" height="80" class="state"/>
+  <text x="610" y="220" class="state-text">pending</text>
+
+  <rect x="790" y="180" width="210" height="80" class="state"/>
+  <text x="895" y="220" class="state-text">in_progress</text>
+
+  <rect x="520" y="420" width="180" height="80" class="state"/>
+  <text x="610" y="460" class="state-text">resolved</text>
+
+  <rect x="790" y="420" width="180" height="80" class="state"/>
+  <text x="880" y="460" class="state-text">closed</text>
+
+  <path d="M154 220 L250 220" class="line"/>
+  <text x="174" y="202" class="label">criado</text>
+
+  <path d="M430 220 L520 220" class="line"/>
+  <text x="455" y="202" class="label">aguarda</text>
+
+  <path d="M700 220 L790 220" class="line"/>
+  <text x="720" y="202" class="label">assume</text>
+
+  <path d="M895 260 C895 330 735 390 650 420" class="line"/>
+  <text x="795" y="350" class="label">resolve</text>
+
+  <path d="M700 460 L790 460" class="line"/>
+  <text x="725" y="442" class="label">encerra</text>
+
+  <path d="M340 260 C360 390 480 450 520 460" class="soft"/>
+  <text x="375" y="370" class="label">resolve direto</text>
+
+  <path d="M430 240 C570 310 680 360 790 440" class="soft"/>
+  <text x="585" y="344" class="label">encerra</text>
+
+  <path d="M1000 220 C1100 275 1080 420 970 460" class="soft"/>
+  <text x="1030" y="340" class="label">encerra</text>
+
+  <path d="M790 475 C600 615 350 520 340 260" class="soft"/>
+  <text x="540" y="620" class="label">reabre / nova conversa</text>
+</svg>

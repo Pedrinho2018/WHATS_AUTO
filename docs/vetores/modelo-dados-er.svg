@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .sub { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .entity { fill: #ffffff; stroke: #475569; stroke-width: 2; rx: 10; }
+      .entity-head { fill: #e0f2fe; stroke: #475569; stroke-width: 2; }
+      .name { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .attr { font: 400 14px Arial, sans-serif; fill: #334155; }
+      .line { fill: none; stroke: #475569; stroke-width: 2.4; marker-end: url(#arrow); }
+      .rel { font: 700 13px Arial, sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1100" fill="#f8fafc"/>
+  <text x="70" y="70" class="title">Modelo de dados principal</text>
+  <text x="70" y="102" class="sub">Entidades Sequelize e relacionamentos centrais</text>
+
+  <g id="Company">
+    <rect x="720" y="145" width="300" height="170" class="entity"/>
+    <rect x="720" y="145" width="300" height="46" class="entity-head"/>
+    <text x="745" y="175" class="name">Company</text>
+    <text x="745" y="220" class="attr">id</text>
+    <text x="745" y="244" class="attr">name</text>
+    <text x="745" y="268" class="attr">subdomain</text>
+    <text x="745" y="292" class="attr">settings</text>
+  </g>
+
+  <g id="User">
+    <rect x="120" y="420" width="300" height="190" class="entity"/>
+    <rect x="120" y="420" width="300" height="46" class="entity-head"/>
+    <text x="145" y="450" class="name">User</text>
+    <text x="145" y="495" class="attr">id, company_id</text>
+    <text x="145" y="519" class="attr">name, email</text>
+    <text x="145" y="543" class="attr">role</text>
+    <text x="145" y="567" class="attr">is_active</text>
+  </g>
+
+  <g id="Instance">
+    <rect x="520" y="420" width="300" height="190" class="entity"/>
+    <rect x="520" y="420" width="300" height="46" class="entity-head"/>
+    <text x="545" y="450" class="name">Instance</text>
+    <text x="545" y="495" class="attr">id, company_id</text>
+    <text x="545" y="519" class="attr">name</text>
+    <text x="545" y="543" class="attr">evolution_instance</text>
+    <text x="545" y="567" class="attr">phone, status</text>
+  </g>
+
+  <g id="Ticket">
+    <rect x="920" y="420" width="330" height="220" class="entity"/>
+    <rect x="920" y="420" width="330" height="46" class="entity-head"/>
+    <text x="945" y="450" class="name">Ticket</text>
+    <text x="945" y="495" class="attr">id, company_id</text>
+    <text x="945" y="519" class="attr">instance_id, user_id</text>
+    <text x="945" y="543" class="attr">contact_phone, contact_name</text>
+    <text x="945" y="567" class="attr">status, priority</text>
+    <text x="945" y="591" class="attr">channel, last_message_at</text>
+  </g>
+
+  <g id="Message">
+    <rect x="1350" y="420" width="330" height="220" class="entity"/>
+    <rect x="1350" y="420" width="330" height="46" class="entity-head"/>
+    <text x="1375" y="450" class="name">Message</text>
+    <text x="1375" y="495" class="attr">id, company_id</text>
+    <text x="1375" y="519" class="attr">ticket_id, instance_id</text>
+    <text x="1375" y="543" class="attr">message_id</text>
+    <text x="1375" y="567" class="attr">direction, type, status</text>
+    <text x="1375" y="591" class="attr">content, sent_at</text>
+  </g>
+
+  <g id="Flow">
+    <rect x="280" y="780" width="300" height="170" class="entity"/>
+    <rect x="280" y="780" width="300" height="46" class="entity-head"/>
+    <text x="305" y="810" class="name">Flow</text>
+    <text x="305" y="855" class="attr">id, company_id</text>
+    <text x="305" y="879" class="attr">name</text>
+    <text x="305" y="903" class="attr">trigger_type</text>
+    <text x="305" y="927" class="attr">is_active</text>
+  </g>
+
+  <g id="FlowWorkspace">
+    <rect x="680" y="780" width="300" height="170" class="entity"/>
+    <rect x="680" y="780" width="300" height="46" class="entity-head"/>
+    <text x="705" y="810" class="name">FlowWorkspace</text>
+    <text x="705" y="855" class="attr">id, company_id</text>
+    <text x="705" y="879" class="attr">flow_id</text>
+    <text x="705" y="903" class="attr">nodes</text>
+    <text x="705" y="927" class="attr">edges</text>
+  </g>
+
+  <g id="Template">
+    <rect x="1080" y="780" width="300" height="170" class="entity"/>
+    <rect x="1080" y="780" width="300" height="46" class="entity-head"/>
+    <text x="1105" y="810" class="name">MessageTemplate</text>
+    <text x="1105" y="855" class="attr">id, company_id</text>
+    <text x="1105" y="879" class="attr">name</text>
+    <text x="1105" y="903" class="attr">content</text>
+    <text x="1105" y="927" class="attr">category</text>
+  </g>
+
+  <g id="BotConfig">
+    <rect x="1480" y="780" width="260" height="150" class="entity"/>
+    <rect x="1480" y="780" width="260" height="46" class="entity-head"/>
+    <text x="1505" y="810" class="name">BotConfig</text>
+    <text x="1505" y="855" class="attr">id, company_id</text>
+    <text x="1505" y="879" class="attr">settings</text>
+    <text x="1505" y="903" class="attr">business rules</text>
+  </g>
+
+  <path d="M720 245 C560 270 380 350 270 420" class="line"/>
+  <text x="425" y="322" class="rel">1:N</text>
+  <path d="M790 315 C740 350 700 380 670 420" class="line"/>
+  <text x="730" y="370" class="rel">1:N</text>
+  <path d="M950 315 C1010 350 1050 380 1085 420" class="line"/>
+  <text x="1022" y="370" class="rel">1:N</text>
+  <path d="M1020 250 C1190 280 1390 350 1515 420" class="line"/>
+  <text x="1265" y="322" class="rel">1:N</text>
+  <path d="M670 610 C740 660 860 690 1010 640" class="line"/>
+  <text x="790" y="666" class="rel">Instance 1:N Ticket</text>
+  <path d="M1250 530 L1350 530" class="line"/>
+  <text x="1278" y="510" class="rel">1:N</text>
+  <path d="M820 515 C990 690 1280 715 1515 640" class="line"/>
+  <text x="1080" y="720" class="rel">Instance 1:N Message</text>
+  <path d="M420 515 C630 690 800 705 920 590" class="line"/>
+  <text x="585" y="710" class="rel">User 1:N Ticket</text>
+  <path d="M790 315 C670 500 525 680 430 780" class="line"/>
+  <text x="575" y="602" class="rel">1:N</text>
+  <path d="M870 315 L830 780" class="line"/>
+  <text x="852" y="555" class="rel">1:N</text>
+  <path d="M950 315 C1030 500 1130 650 1230 780" class="line"/>
+  <text x="1090" y="602" class="rel">1:N</text>
+  <path d="M1020 260 C1250 420 1460 620 1610 780" class="line"/>
+  <text x="1350" y="610" class="rel">1:N</text>
+  <path d="M580 865 L680 865" class="line"/>
+  <text x="615" y="842" class="rel">1:1</text>
+</svg>

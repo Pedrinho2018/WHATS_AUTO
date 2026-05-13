@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #0f172a; }
+      .sub { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .actor { fill: #ffffff; stroke: #16a34a; stroke-width: 2; rx: 12; }
+      .actor-title { font: 700 17px Arial, sans-serif; fill: #0f172a; text-anchor: middle; }
+      .lifeline { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 8 8; }
+      .msg { stroke: #334155; stroke-width: 2.4; marker-end: url(#arrow); }
+      .event { stroke: #0f766e; stroke-width: 2.4; marker-end: url(#arrow); }
+      .return { stroke: #64748b; stroke-width: 2; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+      .label { font: 600 14px Arial, sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="820" fill="#f8fafc"/>
+  <text x="70" y="70" class="title">Sequencia - resposta do operador</text>
+  <text x="70" y="102" class="sub">Envio outbound, persistencia e atualizacao realtime</text>
+
+  <rect x="70" y="150" width="170" height="58" class="actor"/>
+  <text x="155" y="185" class="actor-title">Operador</text>
+  <line x1="155" y1="208" x2="155" y2="730" class="lifeline"/>
+
+  <rect x="310" y="150" width="170" height="58" class="actor"/>
+  <text x="395" y="185" class="actor-title">Frontend</text>
+  <line x1="395" y1="208" x2="395" y2="730" class="lifeline"/>
+
+  <rect x="550" y="150" width="170" height="58" class="actor"/>
+  <text x="635" y="185" class="actor-title">Backend</text>
+  <line x1="635" y1="208" x2="635" y2="730" class="lifeline"/>
+
+  <rect x="780" y="150" width="220" height="58" class="actor"/>
+  <text x="890" y="185" class="actor-title">Conversation App</text>
+  <line x1="890" y1="208" x2="890" y2="730" class="lifeline"/>
+
+  <rect x="1060" y="150" width="170" height="58" class="actor"/>
+  <text x="1145" y="185" class="actor-title">Evolution</text>
+  <line x1="1145" y1="208" x2="1145" y2="730" class="lifeline"/>
+
+  <rect x="1280" y="150" width="170" height="58" class="actor"/>
+  <text x="1365" y="185" class="actor-title">MariaDB</text>
+  <line x1="1365" y1="208" x2="1365" y2="730" class="lifeline"/>
+
+  <line x1="155" y1="255" x2="395" y2="255" class="msg"/>
+  <text x="190" y="240" class="label">1. Digita e envia resposta</text>
+
+  <line x1="395" y1="325" x2="635" y2="325" class="msg"/>
+  <text x="415" y="310" class="label">2. POST /api/messages/tickets/:id/text</text>
+
+  <line x1="635" y1="395" x2="890" y2="395" class="msg"/>
+  <text x="670" y="380" class="label">3. sendTextToTicket()</text>
+
+  <line x1="890" y1="465" x2="1365" y2="465" class="msg"/>
+  <text x="990" y="450" class="label">4. Busca ticket e instancia</text>
+
+  <line x1="890" y1="535" x2="1145" y2="535" class="msg"/>
+  <text x="925" y="520" class="label">5. Envia texto WhatsApp</text>
+
+  <line x1="1145" y1="585" x2="890" y2="585" class="return"/>
+  <text x="950" y="610" class="label">messageId + status</text>
+
+  <line x1="890" y1="650" x2="1365" y2="650" class="msg"/>
+  <text x="980" y="635" class="label">6. Salva Message outbound</text>
+
+  <line x1="890" y1="700" x2="395" y2="700" class="event"/>
+  <text x="530" y="685" class="label">7. server:message.created</text>
+</svg>
